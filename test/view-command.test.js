@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { openCommand } from '../scripts/view-artifact.mjs';
+import { openCommand } from '../scripts/lib/open-url.mjs';
 
 describe('openCommand', () => {
   it('uses `open` on macOS (darwin)', () => {

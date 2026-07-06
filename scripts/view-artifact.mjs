@@ -12,24 +12,10 @@ import { basename, extname, join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { get } from "node:http";
+import { openUrl } from "./lib/open-url.mjs";
 
 const PORT = 5188;
 const BASE_URL = `http://localhost:${PORT}`;
-
-// Pure helper: map a platform to the OS command + args used to open a URL.
-// Exported so it can be unit-tested without spawning anything.
-export function openCommand(platform) {
-  switch (platform) {
-    case "darwin":
-      return { command: "open", args: [] };
-    case "win32":
-      // `start` is a cmd builtin; the empty "" is the window-title placeholder.
-      return { command: "cmd", args: ["/c", "start", ""] };
-    default:
-      // linux and other posix
-      return { command: "xdg-open", args: [] };
-  }
-}
 
 // Probe the dev server with a single HTTP GET against a specific host.
 function probeHost(host, port) {
@@ -115,19 +101,7 @@ async function main() {
   }
 
   // Open the default browser (best effort). Print the URL regardless.
-  const { command, args } = openCommand(process.platform);
-  try {
-    const opener = spawn(command, [...args, url], {
-      detached: true,
-      stdio: "ignore",
-    });
-    opener.on("error", () => {
-      /* auto-open failed; the printed URL is the fallback */
-    });
-    opener.unref();
-  } catch {
-    /* ignore: the printed URL is the fallback */
-  }
+  openUrl(url);
 
   console.log(`Open: ${url}`);
 }
