@@ -70,6 +70,14 @@ Either way it appears in the picker at the top of the viewer automatically (hot 
 The repo ships with a gallery of examples (see below), so there's plenty to look at on
 first run.
 
+## Creating artifacts
+
+Want to make your own? The viewer renders a specific shape of file: one self-contained
+`.jsx`, `export default` a component, only `react`/`react-dom`/`lucide-react`, inline
+styles, no network or external assets. [docs/authoring.md](docs/authoring.md) spells out
+the rules and includes a copy-paste prompt you can hand to Claude, Copilot, or Cursor to
+get a viewer-ready artifact in one shot.
+
 ## Example artifacts
 
 Seven artifacts ship in `src/artifacts/`, each a single self-contained file that imports
