@@ -1,0 +1,18 @@
+{
+  // Runs `npm run view` on the currently active editor file, which copies the
+  // .jsx into src/artifacts/, ensures the dev server, and opens it in the viewer.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Open in Artifact Viewer",
+      "type": "shell",
+      "command": "npm run view -- ${file}",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "dedicated",
+        "clear": true
+      }
+    }
+  ]
+}

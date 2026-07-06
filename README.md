@@ -77,6 +77,15 @@ and the current artifact opens in a compact standalone window (480×800) showing
 artifact — no header or picker. Under the hood it just opens
 `?artifact=<name>&popout=1`, so the URL is shareable and reload-safe.
 
+## VS Code
+
+No install needed: this repo ships a task that opens the file you're editing in the
+viewer. Open a `.jsx`, then Command Palette → **Tasks: Run Task** → **Open in Artifact
+Viewer**. It copies the file into `src/artifacts/`, ensures the dev server, and opens it
+at `?artifact=<name>`. Bind it to a shortcut by adding a keybinding for
+`workbench.action.tasks.runTask` if you run it often. This is the no-install path; a
+right-click-to-view extension is planned ([#4](https://github.com/jochien/artifact-viewer/issues/4)).
+
 ## Creating artifacts
 
 Want to make your own? The viewer renders a specific shape of file: one self-contained
