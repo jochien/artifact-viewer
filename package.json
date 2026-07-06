@@ -10,7 +10,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "add": "node scripts/add-artifact.mjs"
+    "add": "node scripts/add-artifact.mjs",
+    "new": "node scripts/new-artifact.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.400.0",
