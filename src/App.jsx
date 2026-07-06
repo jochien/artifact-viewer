@@ -1,6 +1,7 @@
 import React, { Suspense, useMemo, useState } from "react";
 import { Plus, Copy, Check } from "lucide-react";
 import { AUTHORING_PROMPT } from "./authoringPrompt.js";
+import { pathToName, nameToPath } from "./artifactNames.js";
 
 /*
   Auto-discovers every .jsx file in ./artifacts and lets you pick one to render.
@@ -9,15 +10,27 @@ import { AUTHORING_PROMPT } from "./authoringPrompt.js";
 const modules = import.meta.glob("./artifacts/*.jsx");
 
 const names = Object.keys(modules)
-  .map((path) => ({
-    path,
-    name: path.replace("./artifacts/", "").replace(/\.jsx$/, ""),
-  }))
+  .map((path) => ({ path, name: pathToName(path) }))
   .sort((a, b) => a.name.localeCompare(b.name));
 
+// Resolve the initial artifact path from ?artifact=<name>, falling back to the
+// first discovered artifact when the param is absent or does not match one.
+function initialSelected() {
+  const wanted = new URLSearchParams(window.location.search).get("artifact");
+  return nameToPath(names, wanted) ?? names[0]?.path ?? null;
+}
+
 export default function App() {
-  const [selected, setSelected] = useState(names[0]?.path ?? null);
+  const [selected, setSelected] = useState(initialSelected);
   const [showPrompt, setShowPrompt] = useState(false);
+
+  // Reflect the current selection in the URL without reloading or adding history.
+  const selectPath = (path) => {
+    setSelected(path);
+    const url = new URL(window.location.href);
+    url.searchParams.set("artifact", pathToName(path));
+    history.replaceState(null, "", url);
+  };
 
   const Artifact = useMemo(() => {
     if (!selected) return null;
@@ -44,7 +57,7 @@ export default function App() {
         {names.length > 0 ? (
           <select
             value={selected ?? ""}
-            onChange={(e) => setSelected(e.target.value)}
+            onChange={(e) => selectPath(e.target.value)}
             style={{ fontSize: 13, padding: "3px 6px" }}
           >
             {names.map(({ path, name }) => (
