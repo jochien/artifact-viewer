@@ -232,8 +232,13 @@ function MakeOnePanel() {
         <code>&lt;describe what you want&gt;</code>, and drop the result into{" "}
         <code>src/artifacts/</code>. You can also copy an existing example to start
         from. See{" "}
-        <a href="docs/authoring.md" style={{ color: "#1a5fb4" }}>
-          docs/authoring.md
+        <a
+          href="https://github.com/jochien/artifact-viewer/blob/main/docs/authoring.md"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "#1a5fb4" }}
+        >
+          the authoring guide
         </a>{" "}
         for the full rules.
       </p>
