@@ -12,3 +12,9 @@ export function pathToName(path) {
 export function nameToPath(names, name) {
   return names.find((n) => n.name === name)?.path ?? null;
 }
+
+// True when a location's query string requests popout mode (?popout=1), i.e. the
+// bare, chrome-light render used by the pop-out window. Pure string logic, no DOM.
+export function isPopout(search) {
+  return new URLSearchParams(search).get("popout") === "1";
+}

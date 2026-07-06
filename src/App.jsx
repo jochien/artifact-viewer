@@ -1,7 +1,7 @@
 import React, { Suspense, useMemo, useState } from "react";
-import { Plus, Copy, Check } from "lucide-react";
+import { Plus, Copy, Check, ExternalLink } from "lucide-react";
 import { AUTHORING_PROMPT } from "./authoringPrompt.js";
-import { pathToName, nameToPath } from "./artifactNames.js";
+import { pathToName, nameToPath, isPopout } from "./artifactNames.js";
 
 /*
   Auto-discovers every .jsx file in ./artifacts and lets you pick one to render.
@@ -24,12 +24,23 @@ export default function App() {
   const [selected, setSelected] = useState(initialSelected);
   const [showPrompt, setShowPrompt] = useState(false);
 
+  // In popout mode the page is a bare, chrome-light window: render only the artifact.
+  const popout = isPopout(window.location.search);
+
   // Reflect the current selection in the URL without reloading or adding history.
   const selectPath = (path) => {
     setSelected(path);
     const url = new URL(window.location.href);
     url.searchParams.set("artifact", pathToName(path));
     history.replaceState(null, "", url);
+  };
+
+  // Open the current artifact in a compact standalone window, preserving the
+  // ?artifact=<name> contract and flagging popout mode so it renders bare.
+  const openPopout = () => {
+    if (!selected) return;
+    const url = `?artifact=${encodeURIComponent(pathToName(selected))}&popout=1`;
+    window.open(url, "_blank", "width=480,height=800");
   };
 
   const Artifact = useMemo(() => {
@@ -39,6 +50,22 @@ export default function App() {
       return { default: mod.default ?? Object.values(mod)[0] };
     });
   }, [selected]);
+
+  if (popout) {
+    return (
+      <main style={{ height: "100%", overflow: "auto" }}>
+        {Artifact ? (
+          <Suspense fallback={<div style={{ padding: 20 }}>Loading…</div>}>
+            <ErrorBoundary key={selected}>
+              <Artifact />
+            </ErrorBoundary>
+          </Suspense>
+        ) : (
+          <EmptyState />
+        )}
+      </main>
+    );
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -93,6 +120,29 @@ export default function App() {
           >
             <Plus size={13} strokeWidth={2.2} />
             New artifact
+          </button>
+        )}
+        {names.length > 0 && (
+          <button
+            type="button"
+            onClick={openPopout}
+            disabled={!selected}
+            title="Open this artifact in a separate compact window"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              fontSize: 12,
+              padding: "3px 8px",
+              color: "#555",
+              background: "#fff",
+              border: "1px solid #d5d5d5",
+              borderRadius: 5,
+              cursor: selected ? "pointer" : "default",
+            }}
+          >
+            <ExternalLink size={13} strokeWidth={2.2} />
+            Pop out
           </button>
         )}
       </header>

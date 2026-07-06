@@ -70,6 +70,13 @@ Either way it appears in the picker at the top of the viewer automatically (hot 
 The repo ships with a gallery of examples (see below), so there's plenty to look at on
 first run.
 
+## Pop out
+
+Want the artifact in its own window next to the editor? Click **Pop out** in the header
+and the current artifact opens in a compact standalone window (480×800) showing only the
+artifact — no header or picker. Under the hood it just opens
+`?artifact=<name>&popout=1`, so the URL is shareable and reload-safe.
+
 ## Creating artifacts
 
 Want to make your own? The viewer renders a specific shape of file: one self-contained
