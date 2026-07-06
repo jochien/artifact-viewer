@@ -48,7 +48,7 @@ between. This release is the engine; the seamless trigger comes next.
 
 ## Run it
 
-Works anywhere Node runs (macOS, Windows, Linux). You'll need **Node 18+** and npm.
+Works anywhere Node runs (macOS, Windows, Linux). You'll need **Node 20+** and npm.
 
 ```bash
 npm install          # first time only
@@ -128,7 +128,7 @@ That's the entire architecture. No database, no config, no accounts.
 
 Planned features (right-click-to-view, one-command launch, `.tsx` support, and more) are
 tracked in [GitHub issues](https://github.com/jochien/artifact-viewer/issues). Pull
-requests run a CI build on Node 18 and 20; `main` is protected and requires that check to
+requests run a CI build on Node 20 and 22; `main` is protected and requires that check to
 pass before merge.
 
 ## License
