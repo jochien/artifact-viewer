@@ -1,5 +1,7 @@
 # Artifact Viewer
 
+[![CI](https://github.com/jochien/artifact-viewer/actions/workflows/ci.yml/badge.svg)](https://github.com/jochien/artifact-viewer/actions/workflows/ci.yml)
+
 A tiny local viewer that renders React/JSX artifacts the moment your AI writes them.
 Think of it as Claude's Artifacts panel, pulled out of the browser and parked next to
 your VS Code editor.
@@ -65,8 +67,22 @@ npm run add -- /path/to/your-artifact.jsx
 ```
 
 Either way it appears in the picker at the top of the viewer automatically (hot reload).
-The repo ships with one example, `protection-plan-comparator.jsx`, so there's something
-to look at on first run.
+The repo ships with a gallery of examples (see below), so there's plenty to look at on
+first run.
+
+## Example artifacts
+
+Seven artifacts ship in `src/artifacts/`, each a single self-contained file that imports
+only `react` and `lucide-react`, so they render with zero install. They double as a tour
+of what fast React prototyping is good for:
+
+- **Memory match** (`memory-match-game.jsx`) — a playable concentration game.
+- **Pomodoro timer** (`pomodoro-timer.jsx`) — focus/break cycles with an SVG progress ring.
+- **Generative art studio** (`generative-art-studio.jsx`) — seeded, reproducible SVG art with SVG export.
+- **Trivia quiz** (`trivia-quiz.jsx`) — a scored multiple-choice quiz with a results screen.
+- **SaaS pricing page** (`saas-pricing-page.jsx`) — a marketing page with a monthly/annual toggle.
+- **Invoice builder** (`invoice-builder.jsx`) — an editable invoice with live totals and print.
+- **Protection plan comparator** (`protection-plan-comparator.jsx`) — the original ledger-style demo.
 
 ## How it works
 
@@ -83,6 +99,13 @@ That's the entire architecture. No database, no config, no accounts.
 - Artifacts must `export default` a React component (Claude/Cursor/Copilot artifacts do).
 - `react`, `react-dom`, and `lucide-react` are installed. If an artifact imports something
   else (`framer-motion`, `recharts`, and so on), install it: `npm install <package>`.
+
+## Roadmap & contributing
+
+Planned features (right-click-to-view, one-command launch, `.tsx` support, and more) are
+tracked in [GitHub issues](https://github.com/jochien/artifact-viewer/issues). Pull
+requests run a CI build on Node 18 and 20; `main` is protected and requires that check to
+pass before merge.
 
 ## License
 
