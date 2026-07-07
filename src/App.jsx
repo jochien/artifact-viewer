@@ -1,5 +1,5 @@
 import React, { Suspense, useMemo, useState } from "react";
-import { Plus, Copy, Check, ExternalLink } from "lucide-react";
+import { Plus, Copy, Check, ExternalLink, Trash2 } from "lucide-react";
 import { AUTHORING_PROMPT } from "./authoringPrompt.js";
 import { pathToName, nameToPath, isPopout } from "./artifactNames.js";
 
@@ -41,6 +41,36 @@ export default function App() {
     if (!selected) return;
     const url = `?artifact=${encodeURIComponent(pathToName(selected))}&popout=1`;
     window.open(url, "_blank", "width=480,height=800");
+  };
+
+  // Delete the selected artifact via the dev-only endpoint. On success, clear
+  // ?artifact and reload so import.meta.glob re-evaluates and the picker moves
+  // to another artifact. The endpoint only exists in the dev server.
+  const deleteSelected = async () => {
+    if (!selected) return;
+    const name = pathToName(selected);
+    if (
+      !window.confirm(
+        `Delete ${name}? This removes the file from src/artifacts/.`,
+      )
+    )
+      return;
+    try {
+      const res = await fetch("/__delete-artifact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) {
+        alert(`Could not delete ${name} (status ${res.status}).`);
+        return;
+      }
+      const url = new URL(window.location.href);
+      url.searchParams.delete("artifact");
+      window.location.href = url.pathname + url.search;
+    } catch {
+      alert(`Could not delete ${name}.`);
+    }
   };
 
   const Artifact = useMemo(() => {
@@ -143,6 +173,29 @@ export default function App() {
           >
             <ExternalLink size={13} strokeWidth={2.2} />
             Pop out
+          </button>
+        )}
+        {names.length > 0 && (
+          <button
+            type="button"
+            onClick={deleteSelected}
+            disabled={!selected}
+            title="Delete this artifact file from src/artifacts/"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              fontSize: 12,
+              padding: "3px 8px",
+              color: selected ? "#a5432e" : "#bbb",
+              background: "#fff",
+              border: "1px solid #d5d5d5",
+              borderRadius: 5,
+              cursor: selected ? "pointer" : "default",
+            }}
+          >
+            <Trash2 size={13} strokeWidth={2.2} />
+            Delete
           </button>
         )}
       </header>
