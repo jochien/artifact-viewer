@@ -1,7 +1,12 @@
 import React, { Suspense, useMemo, useState } from "react";
-import { Plus, Copy, Check, ExternalLink, Trash2 } from "lucide-react";
+import { Plus, Copy, Check, ExternalLink, Trash2, ChevronLeft } from "lucide-react";
 import { AUTHORING_PROMPT } from "./authoringPrompt.js";
-import { pathToName, nameToPath, isPopout } from "./artifactNames.js";
+import {
+  pathToName,
+  isPopout,
+  resolveView,
+  prettifyName,
+} from "./artifactNames.js";
 
 /*
   Auto-discovers every .jsx file in ./artifacts and lets you pick one to render.
@@ -13,11 +18,10 @@ const names = Object.keys(modules)
   .map((path) => ({ path, name: pathToName(path) }))
   .sort((a, b) => a.name.localeCompare(b.name));
 
-// Resolve the initial artifact path from ?artifact=<name>, falling back to the
-// first discovered artifact when the param is absent or does not match one.
+// Resolve the initial artifact path from the URL. A missing or unknown
+// ?artifact=<name> leaves nothing selected, which renders the gallery homepage.
 function initialSelected() {
-  const wanted = new URLSearchParams(window.location.search).get("artifact");
-  return nameToPath(names, wanted) ?? names[0]?.path ?? null;
+  return resolveView(window.location.search, names).path;
 }
 
 export default function App() {
@@ -32,6 +36,14 @@ export default function App() {
     setSelected(path);
     const url = new URL(window.location.href);
     url.searchParams.set("artifact", pathToName(path));
+    history.replaceState(null, "", url);
+  };
+
+  // Return to the gallery homepage: clear the selection and drop ?artifact.
+  const goToGallery = () => {
+    setSelected(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("artifact");
     history.replaceState(null, "", url);
   };
 
@@ -97,6 +109,8 @@ export default function App() {
     );
   }
 
+  const inGallery = !selected;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <header
@@ -110,8 +124,27 @@ export default function App() {
           flex: "0 0 auto",
         }}
       >
-        <strong style={{ fontSize: 13, color: "#333" }}>Artifact Viewer</strong>
-        {names.length > 0 ? (
+        <button
+          type="button"
+          onClick={goToGallery}
+          title={inGallery ? "Artifact gallery" : "Back to the gallery"}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            fontSize: 13,
+            fontWeight: 700,
+            color: "#333",
+            background: "transparent",
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
+          }}
+        >
+          {!inGallery && <ChevronLeft size={15} strokeWidth={2.2} />}
+          Artifact Viewer
+        </button>
+        {!inGallery && names.length > 0 && (
           <select
             value={selected ?? ""}
             onChange={(e) => selectPath(e.target.value)}
@@ -119,11 +152,12 @@ export default function App() {
           >
             {names.map(({ path, name }) => (
               <option key={path} value={path}>
-                {name}
+                {prettifyName(name)}
               </option>
             ))}
           </select>
-        ) : (
+        )}
+        {inGallery && names.length === 0 && (
           <span style={{ fontSize: 13, color: "#999" }}>
             No artifacts yet — add a .jsx file to src/artifacts/
           </span>
@@ -152,7 +186,7 @@ export default function App() {
             New artifact
           </button>
         )}
-        {names.length > 0 && (
+        {selected && (
           <button
             type="button"
             onClick={openPopout}
@@ -175,7 +209,7 @@ export default function App() {
             Pop out
           </button>
         )}
-        {names.length > 0 && (
+        {selected && (
           <button
             type="button"
             onClick={deleteSelected}
@@ -216,16 +250,115 @@ export default function App() {
       )}
 
       <main style={{ flex: "1 1 auto", overflow: "auto" }}>
-        {Artifact ? (
+        {inGallery ? (
+          names.length > 0 ? (
+            <Gallery names={names} onOpen={selectPath} />
+          ) : (
+            <EmptyState />
+          )
+        ) : (
           <Suspense fallback={<div style={{ padding: 20 }}>Loading…</div>}>
             <ErrorBoundary key={selected}>
               <Artifact />
             </ErrorBoundary>
           </Suspense>
-        ) : (
-          <EmptyState />
         )}
       </main>
+    </div>
+  );
+}
+
+function Gallery({ names, onOpen }) {
+  const mono =
+    "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+  return (
+    <div style={{ padding: "20px clamp(14px, 3vw, 28px) 40px" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 10,
+          marginBottom: 16,
+        }}
+      >
+        <h1 style={{ margin: 0, fontSize: 18, color: "#222" }}>Artifacts</h1>
+        <span style={{ fontSize: 13, color: "#888" }}>
+          {names.length} {names.length === 1 ? "artifact" : "artifacts"}
+        </span>
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
+          gap: 14,
+        }}
+      >
+        {names.map(({ path, name }) => {
+          const title = prettifyName(name);
+          return (
+            <button
+              key={path}
+              type="button"
+              onClick={() => onOpen(path)}
+              title={`Open ${title}`}
+              style={{
+                textAlign: "left",
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+                minHeight: 96,
+                padding: "14px 15px",
+                background: "#fff",
+                border: "1px solid #e2e2e2",
+                borderRadius: 10,
+                cursor: "pointer",
+                transition:
+                  "border-color 120ms, box-shadow 120ms, transform 120ms",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#bcd2f0";
+                e.currentTarget.style.boxShadow =
+                  "0 2px 10px rgba(26,95,180,0.10)";
+                e.currentTarget.style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "#e2e2e2";
+                e.currentTarget.style.boxShadow = "none";
+                e.currentTarget.style.transform = "none";
+              }}
+            >
+              <div
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 8,
+                  display: "grid",
+                  placeItems: "center",
+                  background: "#eef4fd",
+                  color: "#1a5fb4",
+                  fontWeight: 700,
+                  fontSize: 15,
+                }}
+              >
+                {title.charAt(0)}
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#222" }}>
+                {title}
+              </div>
+              <div
+                style={{
+                  fontFamily: mono,
+                  fontSize: 11,
+                  color: "#999",
+                  marginTop: "auto",
+                }}
+              >
+                {name}.jsx
+              </div>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

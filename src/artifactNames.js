@@ -18,3 +18,28 @@ export function nameToPath(names, name) {
 export function isPopout(search) {
   return new URLSearchParams(search).get("popout") === "1";
 }
+
+// Turn a short artifact name into a human-readable title: split on "-" and "_"
+// and Title-Case each word. "macaroni-explainer" -> "Macaroni Explainer".
+export function prettifyName(name) {
+  return String(name ?? "")
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+// Decide which view the app should render from the URL query string, plus the
+// artifact path (if any). Pure logic so it is unit-testable without a DOM.
+//   - popout mode (?popout=1) always wins, resolving the requested artifact if
+//     it exists (else path is null and the bare view shows its empty state).
+//   - a ?artifact=<name> that matches a discovered artifact -> "artifact" view.
+//   - anything else (no param, empty, or unknown name) -> "gallery" view.
+// Returns { mode: "popout" | "artifact" | "gallery", path: string | null }.
+export function resolveView(search, names) {
+  const wanted = new URLSearchParams(search).get("artifact");
+  const path = nameToPath(names, wanted);
+  if (isPopout(search)) return { mode: "popout", path };
+  if (path) return { mode: "artifact", path };
+  return { mode: "gallery", path: null };
+}
