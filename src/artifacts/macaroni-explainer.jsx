@@ -22,6 +22,13 @@ import {
   ChevronRight,
   Play,
   Pause,
+  Wrench,
+  Hand,
+  ListChecks,
+  StickyNote,
+  CalendarDays,
+  BookOpen,
+  ArrowRight,
 } from "lucide-react";
 
 /* ---------------------------------------------------------------
@@ -154,6 +161,57 @@ const SURFACES = [
     icon: RefreshCw,
     color: C.blue,
     dim: C.blueDim,
+  },
+];
+
+/* ---------------------------------------------------------------
+   THE MCP TOOLBELT — the "hands". The AI client spawns roni-mcp
+   as a local stdio subprocess; it exposes `<app>_<action>` tools
+   that reach into specific macOS apps, each call gated by the ACL.
+   It needs Full Disk Access anyway, so running as a spawned
+   subprocess (not a hosted server) is the feature: nothing leaves
+   the Mac.
+--------------------------------------------------------------- */
+const MCP_TOOLS = [
+  {
+    id: "messages",
+    app: "Messages",
+    icon: MessageSquare,
+    color: C.blue,
+    dim: C.blueDim,
+    status: "live",
+    tools: ["messages_read", "messages_send"],
+    note: "Read whitelisted senders · confirm before sending to anyone but the owner.",
+  },
+  {
+    id: "reminders",
+    app: "Reminders",
+    icon: ListChecks,
+    color: C.green,
+    dim: C.greenDim,
+    status: "live",
+    tools: ["reminders_list", "reminders_add"],
+    note: "Knows the “To-Dos” list + priorities from the skills file, not just raw osascript.",
+  },
+  {
+    id: "notes",
+    app: "Notes",
+    icon: StickyNote,
+    color: C.pasta,
+    dim: C.pastaDim,
+    status: "roadmap",
+    tools: ["notes_read", "notes_append"],
+    note: "First-class module planned — read + append, never destructive by default.",
+  },
+  {
+    id: "calendar",
+    app: "Calendar",
+    icon: CalendarDays,
+    color: C.violet,
+    dim: C.violetDim,
+    status: "roadmap",
+    tools: ["calendar_today", "calendar_add"],
+    note: "First-class module planned — surface the day; add events only on confirm.",
   },
 ];
 
@@ -800,6 +858,268 @@ export default function MacaroniExplainer() {
         </section>
       </div>
 
+      {/* ===== THE MCP TOOLBELT — THE HANDS ===== */}
+      <section
+        style={{
+          background: C.panel,
+          border: `1px solid ${C.line}`,
+          borderRadius: 18,
+          padding: "22px 24px 24px",
+          marginBottom: 22,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 6,
+            flexWrap: "wrap",
+          }}
+        >
+          <Wrench size={18} color={C.pasta} />
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
+            The MCP toolbelt
+          </h2>
+          <span style={{ color: C.muted, fontSize: 12.5 }}>
+            the hands — how the agent touches macOS, in a controlled way
+          </span>
+        </div>
+        <p
+          style={{
+            margin: "0 0 18px",
+            color: C.inkSoft,
+            fontSize: 12.8,
+            lineHeight: 1.55,
+            maxWidth: 720,
+          }}
+        >
+          Listening is the ears; the toolbelt is the hands. Instead of a hosted
+          server, the AI client spawns{" "}
+          <code style={{ fontFamily: MONO, color: C.pasta }}>roni-mcp</code> as a
+          local <b>stdio subprocess</b> and calls{" "}
+          <code style={{ fontFamily: MONO, color: C.inkSoft }}>
+            &lt;app&gt;_&lt;action&gt;
+          </code>{" "}
+          tools. It needs Full Disk Access anyway, so a spawned subprocess is the
+          feature, not a limitation — nothing leaves the Mac.
+        </p>
+
+        {/* flow strip: client -> roni-mcp -> tools */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+            background: C.bgAlt,
+            border: `1px solid ${C.lineSoft}`,
+            borderRadius: 12,
+            padding: "12px 14px",
+            marginBottom: 18,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 9,
+                background: C.tealDim,
+                display: "grid",
+                placeItems: "center",
+              }}
+            >
+              <Terminal size={16} color={C.teal} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 12.5 }}>AI client</div>
+              <div style={{ fontFamily: MONO, fontSize: 10, color: C.muted }}>
+                Copilot CLI · Claude · VS Code
+              </div>
+            </div>
+          </div>
+          <ArrowRight size={16} color={C.muted} />
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 9,
+                background: C.violetDim,
+                display: "grid",
+                placeItems: "center",
+              }}
+            >
+              <Plug size={16} color={C.violet} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 12.5 }}>
+                roni-mcp
+                <span
+                  style={{
+                    fontFamily: MONO,
+                    fontSize: 9.5,
+                    color: C.green,
+                    marginLeft: 7,
+                    padding: "1px 6px",
+                    borderRadius: 5,
+                    background: C.greenDim,
+                    border: `1px solid ${C.green}44`,
+                  }}
+                >
+                  local stdio
+                </span>
+              </div>
+              <div style={{ fontFamily: MONO, fontSize: 10, color: C.muted }}>
+                spawned subprocess, not hosted
+              </div>
+            </div>
+          </div>
+          <ArrowRight size={16} color={C.muted} />
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 9,
+                background: C.pastaDim,
+                display: "grid",
+                placeItems: "center",
+              }}
+            >
+              <Hand size={16} color={C.pasta} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 12.5 }}>App tools</div>
+              <div style={{ fontFamily: MONO, fontSize: 10, color: C.muted }}>
+                &lt;app&gt;_&lt;action&gt;
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* per-app tool cards */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
+            gap: 12,
+          }}
+        >
+          {MCP_TOOLS.map((m) => {
+            const Icon = m.icon;
+            const live = m.status === "live";
+            return (
+              <div
+                key={m.id}
+                style={{
+                  background: C.bgAlt,
+                  border: `1px solid ${m.color}33`,
+                  borderRadius: 13,
+                  padding: "14px 15px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                  opacity: live ? 1 : 0.86,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 9,
+                      background: m.dim,
+                      display: "grid",
+                      placeItems: "center",
+                      flex: "0 0 auto",
+                    }}
+                  >
+                    <Icon size={17} color={m.color} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>
+                      {m.app}
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      fontFamily: MONO,
+                      fontSize: 9.5,
+                      letterSpacing: 0.3,
+                      color: live ? C.green : C.muted,
+                      background: live ? C.greenDim : C.lineSoft,
+                      border: `1px solid ${live ? C.green + "44" : C.line}`,
+                      borderRadius: 5,
+                      padding: "2px 6px",
+                    }}
+                  >
+                    {live ? "live" : "roadmap"}
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {m.tools.map((t) => (
+                    <span
+                      key={t}
+                      style={{
+                        fontFamily: MONO,
+                        fontSize: 10.5,
+                        color: m.color,
+                        background: m.dim,
+                        border: `1px solid ${m.color}33`,
+                        borderRadius: 5,
+                        padding: "2px 7px",
+                      }}
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
+
+                <div
+                  style={{
+                    fontSize: 11.5,
+                    color: C.inkSoft,
+                    lineHeight: 1.45,
+                  }}
+                >
+                  {m.note}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* controlled-access footer */}
+        <div
+          style={{
+            marginTop: 16,
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 10,
+            background: C.roseDim,
+            border: `1px solid ${C.rose}33`,
+            borderLeft: `3px solid ${C.rose}`,
+            borderRadius: 11,
+            padding: "12px 14px",
+          }}
+        >
+          <ShieldCheck
+            size={16}
+            color={C.rose}
+            style={{ marginTop: 1, flex: "0 0 auto" }}
+          />
+          <div style={{ fontSize: 12, color: C.inkSoft, lineHeight: 1.55 }}>
+            <b style={{ color: C.ink }}>“Controlled” is literal.</b> Every tool
+            call passes the same ACL gate as the loop, and one narrow process
+            holds Full Disk Access — not all of Homebrew Python. The agent gets
+            explicit handles into a few apps, nothing more.
+          </div>
+        </div>
+      </section>
+
       {/* DEPLOYMENT MODES */}
       <section
         style={{
@@ -967,7 +1287,7 @@ export default function MacaroniExplainer() {
             color: C.ink,
           }}
         >
-          <Ear size={16} color={C.teal} /> Hands
+          <Hand size={16} color={C.pasta} /> Hands
         </span>
         <span style={{ color: C.muted }}>·</span>
         <span
@@ -979,7 +1299,7 @@ export default function MacaroniExplainer() {
             color: C.ink,
           }}
         >
-          <MessageSquare size={16} color={C.blue} /> Ears
+          <Ear size={16} color={C.teal} /> Ears
         </span>
         <span style={{ color: C.muted }}>·</span>
         <span
@@ -991,7 +1311,7 @@ export default function MacaroniExplainer() {
             color: C.ink,
           }}
         >
-          <Brain size={16} color={C.pasta} /> Context
+          <BookOpen size={16} color={C.blue} /> Context
         </span>
         <span style={{ color: C.muted, maxWidth: 520, lineHeight: 1.5 }}>
           — the hard part of an agent isn't the model. Macaroni makes the world
