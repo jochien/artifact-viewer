@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pathToName, nameToPath } from '../src/artifactNames.js';
+import { pathToName, nameToPath, buildNames } from '../src/artifactNames.js';
 
 const names = [
   { path: './artifacts/invoice-builder.jsx', name: 'invoice-builder' },
@@ -12,6 +12,36 @@ describe('pathToName', () => {
     expect(pathToName('./artifacts/protection-plan-comparator.jsx')).toBe(
       'protection-plan-comparator',
     );
+  });
+
+  it('strips the .tsx suffix too', () => {
+    expect(pathToName('./artifacts/hello-typescript.tsx')).toBe(
+      'hello-typescript',
+    );
+  });
+});
+
+describe('buildNames', () => {
+  it('maps and sorts .jsx and .tsx paths by name', () => {
+    expect(
+      buildNames([
+        './artifacts/pomodoro-timer.jsx',
+        './artifacts/hello.tsx',
+      ]),
+    ).toEqual([
+      { path: './artifacts/hello.tsx', name: 'hello' },
+      { path: './artifacts/pomodoro-timer.jsx', name: 'pomodoro-timer' },
+    ]);
+  });
+
+  it('disambiguates a base-name collision with the full filename', () => {
+    const out = buildNames([
+      './artifacts/widget.jsx',
+      './artifacts/widget.tsx',
+    ]);
+    expect(out.map((n) => n.name).sort()).toEqual(['widget.jsx', 'widget.tsx']);
+    // both remain resolvable and distinct
+    expect(new Set(out.map((n) => n.name)).size).toBe(2);
   });
 });
 

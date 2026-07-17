@@ -3,8 +3,29 @@
 // ?artifact=<name> URL contract. Kept DOM-free so it is unit-testable in Vitest.
 
 // Derive the short name from a module path: "./artifacts/foo.jsx" -> "foo".
+// Handles both .jsx and .tsx artifacts.
 export function pathToName(path) {
-  return path.replace("./artifacts/", "").replace(/\.jsx$/, "");
+  return path.replace("./artifacts/", "").replace(/\.(jsx|tsx)$/, "");
+}
+
+// Build the sorted picker list from discovered module paths. Strips the
+// extension for the display name, but if two files share a base name (e.g.
+// foo.jsx and foo.tsx) it disambiguates by falling back to the full filename
+// so the names never collide. Pure logic, no DOM.
+export function buildNames(paths) {
+  const counts = {};
+  const base = (Array.isArray(paths) ? paths : []).map((path) => {
+    const name = pathToName(path);
+    counts[name] = (counts[name] || 0) + 1;
+    return { path, name };
+  });
+  return base
+    .map((b) =>
+      counts[b.name] > 1
+        ? { path: b.path, name: b.path.replace("./artifacts/", "") }
+        : b,
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // Resolve a name to its module path using the discovered list of { path, name }.

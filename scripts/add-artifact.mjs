@@ -32,13 +32,15 @@ if (!existsSync(srcPath)) {
   process.exit(1);
 }
 
+const srcExt = extname(src).toLowerCase();
+const ext = srcExt === ".tsx" ? ".tsx" : ".jsx";
 const rawName = positionals[1] || basename(src, extname(src));
 const safeName = rawName.replace(/[^a-zA-Z0-9-_]/g, "-");
-const destPath = join(artifactsDir, `${safeName}.jsx`);
+const destPath = join(artifactsDir, `${safeName}${ext}`);
 
 mkdirSync(artifactsDir, { recursive: true });
 copyFileSync(srcPath, destPath);
-console.log(`Added artifact: src/artifacts/${safeName}.jsx`);
+console.log(`Added artifact: src/artifacts/${safeName}${ext}`);
 console.log("It will appear in the viewer's picker automatically.");
 
 if (open) {

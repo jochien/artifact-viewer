@@ -69,12 +69,14 @@ async function main() {
   }
 
   // Copy into src/artifacts/, sanitizing the name the same way add-artifact does.
+  const srcExt = extname(src).toLowerCase();
+  const ext = srcExt === ".tsx" ? ".tsx" : ".jsx";
   const rawName = basename(src, extname(src));
   const safeName = rawName.replace(/[^a-zA-Z0-9-_]/g, "-");
-  const destPath = join(artifactsDir, `${safeName}.jsx`);
+  const destPath = join(artifactsDir, `${safeName}${ext}`);
   mkdirSync(artifactsDir, { recursive: true });
   copyFileSync(srcPath, destPath);
-  console.log(`Added artifact: src/artifacts/${safeName}.jsx`);
+  console.log(`Added artifact: src/artifacts/${safeName}${ext}`);
 
   const url = `${BASE_URL}/?artifact=${safeName}`;
 

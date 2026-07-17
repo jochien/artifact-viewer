@@ -21,17 +21,16 @@ import {
   resolveTheme,
   reconcileGroups,
   moveCard,
+  buildNames,
 } from "./artifactNames.js";
 
 /*
-  Auto-discovers every .jsx file in ./artifacts and lets you pick one to render.
+  Auto-discovers every .jsx/.tsx file in ./artifacts and lets you pick one to render.
   Drop (or symlink) any React artifact into src/artifacts/ — it appears here on save.
 */
-const modules = import.meta.glob("./artifacts/*.jsx");
+const modules = import.meta.glob("./artifacts/*.{jsx,tsx}");
 
-const names = Object.keys(modules)
-  .map((path) => ({ path, name: pathToName(path) }))
-  .sort((a, b) => a.name.localeCompare(b.name));
+const names = buildNames(Object.keys(modules));
 
 // Chrome theme palettes. These style the viewer shell only (header, gallery,
 // panels) — artifacts always render with their own colors.
