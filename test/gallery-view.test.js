@@ -4,6 +4,7 @@ import {
   prettifyName,
   thumbScale,
   cardMeta,
+  resolveTheme,
 } from '../src/artifactNames.js';
 
 const names = [
@@ -133,5 +134,23 @@ describe('cardMeta', () => {
       description: '',
       tags: [],
     });
+  });
+});
+
+describe('resolveTheme', () => {
+  it('honors a stored preference over the system setting', () => {
+    expect(resolveTheme('dark', false)).toBe('dark');
+    expect(resolveTheme('light', true)).toBe('light');
+  });
+
+  it('falls back to the system preference when nothing is stored', () => {
+    expect(resolveTheme(null, true)).toBe('dark');
+    expect(resolveTheme(null, false)).toBe('light');
+    expect(resolveTheme(undefined, true)).toBe('dark');
+  });
+
+  it('ignores invalid stored values and uses the system preference', () => {
+    expect(resolveTheme('purple', true)).toBe('dark');
+    expect(resolveTheme('', false)).toBe('light');
   });
 });

@@ -1,5 +1,14 @@
 import React, { Suspense, useMemo, useState, useEffect, useRef } from "react";
-import { Plus, Copy, Check, ExternalLink, Trash2, ChevronLeft } from "lucide-react";
+import {
+  Plus,
+  Copy,
+  Check,
+  ExternalLink,
+  Trash2,
+  ChevronLeft,
+  Moon,
+  Sun,
+} from "lucide-react";
 import { AUTHORING_PROMPT } from "./authoringPrompt.js";
 import {
   pathToName,
@@ -8,6 +17,7 @@ import {
   prettifyName,
   thumbScale,
   cardMeta,
+  resolveTheme,
 } from "./artifactNames.js";
 
 /*
@@ -20,6 +30,82 @@ const names = Object.keys(modules)
   .map((path) => ({ path, name: pathToName(path) }))
   .sort((a, b) => a.name.localeCompare(b.name));
 
+// Chrome theme palettes. These style the viewer shell only (header, gallery,
+// panels) — artifacts always render with their own colors.
+const THEMES = {
+  light: {
+    appBg: "#ffffff",
+    headerBg: "#fafafa",
+    border: "#e2e2e2",
+    borderSoft: "#eeeeee",
+    text: "#333333",
+    textStrong: "#222222",
+    muted: "#888888",
+    faint: "#999999",
+    cardBg: "#ffffff",
+    cardHover: "#bcd2f0",
+    cardShadow: "rgba(26,95,180,0.10)",
+    thumbBg: "#fbfbfd",
+    tileBg: "#eef4fd",
+    tileInner: "#dbe9fb",
+    accent: "#1a5fb4",
+    accentSoftBg: "#eaf2fd",
+    btnBg: "#ffffff",
+    btnBorder: "#d5d5d5",
+    btnText: "#555555",
+    panelBg: "#f7f7f7",
+    desc: "#666666",
+    codeBg: "#ffffff",
+    tagText: "#3a6ea5",
+    tagBg: "#eef4fd",
+    tagBorder: "#d6e4f7",
+    danger: "#a5432e",
+  },
+  dark: {
+    appBg: "#0d1117",
+    headerBg: "#161b22",
+    border: "#30363d",
+    borderSoft: "#21262d",
+    text: "#c9d1d9",
+    textStrong: "#e6edf3",
+    muted: "#8b949e",
+    faint: "#6e7681",
+    cardBg: "#161b22",
+    cardHover: "#388bfd",
+    cardShadow: "rgba(56,139,253,0.20)",
+    thumbBg: "#0d1117",
+    tileBg: "#1c2333",
+    tileInner: "#233047",
+    accent: "#58a6ff",
+    accentSoftBg: "#132133",
+    btnBg: "#21262d",
+    btnBorder: "#30363d",
+    btnText: "#c9d1d9",
+    panelBg: "#161b22",
+    desc: "#8b949e",
+    codeBg: "#0d1117",
+    tagText: "#79c0ff",
+    tagBg: "#132133",
+    tagBorder: "#1f3a5f",
+    danger: "#f85149",
+  },
+};
+
+// The initial theme: a stored choice wins, else follow the OS setting.
+function initialTheme() {
+  let stored = null;
+  try {
+    stored = localStorage.getItem("artifact-viewer-theme");
+  } catch {
+    /* storage unavailable */
+  }
+  const systemDark =
+    typeof window !== "undefined" && window.matchMedia
+      ? window.matchMedia("(prefers-color-scheme: dark)").matches
+      : false;
+  return resolveTheme(stored, systemDark);
+}
+
 // Resolve the initial artifact path from the URL. A missing or unknown
 // ?artifact=<name> leaves nothing selected, which renders the gallery homepage.
 function initialSelected() {
@@ -29,6 +115,19 @@ function initialSelected() {
 export default function App() {
   const [selected, setSelected] = useState(initialSelected);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [theme, setTheme] = useState(initialTheme);
+  const t = THEMES[theme] || THEMES.light;
+  const toggleTheme = () => {
+    setTheme((cur) => {
+      const next = cur === "dark" ? "light" : "dark";
+      try {
+        localStorage.setItem("artifact-viewer-theme", next);
+      } catch {
+        /* storage unavailable — session-only */
+      }
+      return next;
+    });
+  };
 
   // In popout mode the page is a bare, chrome-light window: render only the artifact.
   const popout = isPopout(window.location.search);
@@ -114,15 +213,23 @@ export default function App() {
   const inGallery = !selected;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        background: t.appBg,
+        color: t.text,
+      }}
+    >
       <header
         style={{
           display: "flex",
           alignItems: "center",
           gap: 12,
           padding: "8px 14px",
-          borderBottom: "1px solid #e2e2e2",
-          background: "#fafafa",
+          borderBottom: `1px solid ${t.border}`,
+          background: t.headerBg,
           flex: "0 0 auto",
         }}
       >
@@ -136,7 +243,7 @@ export default function App() {
             gap: 4,
             fontSize: 13,
             fontWeight: 700,
-            color: "#333",
+            color: t.textStrong,
             background: "transparent",
             border: "none",
             padding: 0,
@@ -150,7 +257,14 @@ export default function App() {
           <select
             value={selected ?? ""}
             onChange={(e) => selectPath(e.target.value)}
-            style={{ fontSize: 13, padding: "3px 6px" }}
+            style={{
+              fontSize: 13,
+              padding: "3px 6px",
+              background: t.btnBg,
+              color: t.text,
+              border: `1px solid ${t.btnBorder}`,
+              borderRadius: 5,
+            }}
           >
             {names.map(({ path, name }) => (
               <option key={path} value={path}>
@@ -160,7 +274,7 @@ export default function App() {
           </select>
         )}
         {inGallery && names.length === 0 && (
-          <span style={{ fontSize: 13, color: "#999" }}>
+          <span style={{ fontSize: 13, color: t.faint }}>
             No artifacts yet — add a .jsx file to src/artifacts/
           </span>
         )}
@@ -177,9 +291,9 @@ export default function App() {
               gap: 5,
               fontSize: 12,
               padding: "3px 8px",
-              color: showPrompt ? "#1a5fb4" : "#555",
-              background: showPrompt ? "#eaf2fd" : "#fff",
-              border: "1px solid #d5d5d5",
+              color: showPrompt ? t.accent : t.btnText,
+              background: showPrompt ? t.accentSoftBg : t.btnBg,
+              border: `1px solid ${t.btnBorder}`,
               borderRadius: 5,
               cursor: "pointer",
             }}
@@ -200,9 +314,9 @@ export default function App() {
               gap: 5,
               fontSize: 12,
               padding: "3px 8px",
-              color: "#555",
-              background: "#fff",
-              border: "1px solid #d5d5d5",
+              color: t.btnText,
+              background: t.btnBg,
+              border: `1px solid ${t.btnBorder}`,
               borderRadius: 5,
               cursor: selected ? "pointer" : "default",
             }}
@@ -223,9 +337,9 @@ export default function App() {
               gap: 5,
               fontSize: 12,
               padding: "3px 8px",
-              color: selected ? "#a5432e" : "#bbb",
-              background: "#fff",
-              border: "1px solid #d5d5d5",
+              color: selected ? t.danger : t.faint,
+              background: t.btnBg,
+              border: `1px solid ${t.btnBorder}`,
               borderRadius: 5,
               cursor: selected ? "pointer" : "default",
             }}
@@ -234,29 +348,54 @@ export default function App() {
             Delete
           </button>
         )}
+        <button
+          type="button"
+          onClick={toggleTheme}
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          aria-label="Toggle color theme"
+          style={{
+            marginLeft: names.length > 0 ? 0 : "auto",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            fontSize: 12,
+            padding: "4px 8px",
+            color: t.btnText,
+            background: t.btnBg,
+            border: `1px solid ${t.btnBorder}`,
+            borderRadius: 5,
+            cursor: "pointer",
+          }}
+        >
+          {theme === "dark" ? (
+            <Sun size={14} strokeWidth={2.2} />
+          ) : (
+            <Moon size={14} strokeWidth={2.2} />
+          )}
+        </button>
       </header>
 
       {names.length > 0 && showPrompt && (
         <div
           style={{
             flex: "0 0 auto",
-            borderBottom: "1px solid #e2e2e2",
-            background: "#f7f7f7",
+            borderBottom: `1px solid ${t.border}`,
+            background: t.panelBg,
             padding: "12px 14px",
             maxHeight: "42vh",
             overflow: "auto",
           }}
         >
-          <MakeOnePanel />
+          <MakeOnePanel t={t} />
         </div>
       )}
 
       <main style={{ flex: "1 1 auto", overflow: "auto" }}>
         {inGallery ? (
           names.length > 0 ? (
-            <Gallery names={names} onOpen={selectPath} />
+            <Gallery names={names} onOpen={selectPath} t={t} />
           ) : (
-            <EmptyState />
+            <EmptyState t={t} />
           )
         ) : (
           <Suspense fallback={<div style={{ padding: 20 }}>Loading…</div>}>
@@ -319,7 +458,7 @@ class ThumbErrorBoundary extends React.Component {
 
 // A live, non-interactive preview of an artifact: rendered at THUMB_STAGE_W and
 // scaled to the card width, cropped to THUMB_H. Lazily loaded when in view.
-function Thumbnail({ path, inView, fallback }) {
+function Thumbnail({ path, inView, fallback, t = THEMES.light }) {
   const boxRef = useRef(null);
   const [width, setWidth] = useState(0);
 
@@ -351,8 +490,8 @@ function Thumbnail({ path, inView, fallback }) {
         position: "relative",
         height: THUMB_H,
         overflow: "hidden",
-        background: "#fbfbfd",
-        borderBottom: "1px solid #eee",
+        background: t.thumbBg,
+        borderBottom: `1px solid ${t.borderSoft}`,
       }}
     >
       {Comp && scale > 0 ? (
@@ -380,7 +519,7 @@ function Thumbnail({ path, inView, fallback }) {
   );
 }
 
-function GalleryCard({ path, name, onOpen }) {
+function GalleryCard({ path, name, onOpen, t = THEMES.light }) {
   const cardRef = useRef(null);
   const inView = useInView(cardRef);
   const [meta, setMeta] = useState(null);
@@ -410,7 +549,7 @@ function GalleryCard({ path, name, onOpen }) {
         inset: 0,
         display: "grid",
         placeItems: "center",
-        background: "#eef4fd",
+        background: t.tileBg,
       }}
     >
       <div
@@ -420,8 +559,8 @@ function GalleryCard({ path, name, onOpen }) {
           borderRadius: 9,
           display: "grid",
           placeItems: "center",
-          background: "#dbe9fb",
-          color: "#1a5fb4",
+          background: t.tileInner,
+          color: t.accent,
           fontWeight: 700,
           fontSize: 18,
         }}
@@ -447,25 +586,25 @@ function GalleryCard({ path, name, onOpen }) {
       style={{
         display: "flex",
         flexDirection: "column",
-        background: "#fff",
-        border: "1px solid #e2e2e2",
+        background: t.cardBg,
+        border: `1px solid ${t.border}`,
         borderRadius: 10,
         overflow: "hidden",
         cursor: "pointer",
         transition: "border-color 120ms, box-shadow 120ms, transform 120ms",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = "#bcd2f0";
-        e.currentTarget.style.boxShadow = "0 2px 10px rgba(26,95,180,0.10)";
+        e.currentTarget.style.borderColor = t.cardHover;
+        e.currentTarget.style.boxShadow = `0 2px 10px ${t.cardShadow}`;
         e.currentTarget.style.transform = "translateY(-1px)";
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = "#e2e2e2";
+        e.currentTarget.style.borderColor = t.border;
         e.currentTarget.style.boxShadow = "none";
         e.currentTarget.style.transform = "none";
       }}
     >
-      <Thumbnail path={path} inView={inView} fallback={tile} />
+      <Thumbnail path={path} inView={inView} fallback={tile} t={t} />
       <div
         style={{
           display: "flex",
@@ -474,7 +613,7 @@ function GalleryCard({ path, name, onOpen }) {
           padding: "10px 12px",
         }}
       >
-        <div style={{ fontSize: 13.5, fontWeight: 600, color: "#222" }}>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: t.textStrong }}>
           {title}
         </div>
         {description && (
@@ -482,7 +621,7 @@ function GalleryCard({ path, name, onOpen }) {
             style={{
               fontSize: 12,
               lineHeight: 1.4,
-              color: "#666",
+              color: t.desc,
               display: "-webkit-box",
               WebkitLineClamp: 2,
               WebkitBoxOrient: "vertical",
@@ -492,26 +631,26 @@ function GalleryCard({ path, name, onOpen }) {
             {description}
           </div>
         )}
-        <div style={{ fontFamily: mono, fontSize: 10.5, color: "#999" }}>
+        <div style={{ fontFamily: mono, fontSize: 10.5, color: t.faint }}>
           {name}.jsx
         </div>
         {tags.length > 0 && (
           <div
             style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 2 }}
           >
-            {tags.map((t) => (
+            {tags.map((tag) => (
               <span
-                key={t}
+                key={tag}
                 style={{
                   fontSize: 10,
-                  color: "#3a6ea5",
-                  background: "#eef4fd",
-                  border: "1px solid #d6e4f7",
+                  color: t.tagText,
+                  background: t.tagBg,
+                  border: `1px solid ${t.tagBorder}`,
                   borderRadius: 4,
                   padding: "1px 6px",
                 }}
               >
-                {t}
+                {tag}
               </span>
             ))}
           </div>
@@ -521,7 +660,7 @@ function GalleryCard({ path, name, onOpen }) {
   );
 }
 
-function Gallery({ names, onOpen }) {
+function Gallery({ names, onOpen, t = THEMES.light }) {
   return (
     <div style={{ padding: "20px clamp(14px, 3vw, 28px) 40px" }}>
       <div
@@ -532,8 +671,8 @@ function Gallery({ names, onOpen }) {
           marginBottom: 16,
         }}
       >
-        <h1 style={{ margin: 0, fontSize: 18, color: "#222" }}>Artifacts</h1>
-        <span style={{ fontSize: 13, color: "#888" }}>
+        <h1 style={{ margin: 0, fontSize: 18, color: t.textStrong }}>Artifacts</h1>
+        <span style={{ fontSize: 13, color: t.muted }}>
           {names.length} {names.length === 1 ? "artifact" : "artifacts"}
         </span>
       </div>
@@ -545,14 +684,14 @@ function Gallery({ names, onOpen }) {
         }}
       >
         {names.map(({ path, name }) => (
-          <GalleryCard key={path} path={path} name={name} onOpen={onOpen} />
+          <GalleryCard key={path} path={path} name={name} onOpen={onOpen} t={t} />
         ))}
       </div>
     </div>
   );
 }
 
-function CopyPromptButton() {
+function CopyPromptButton({ t = THEMES.light }) {
   const [copied, setCopied] = useState(false);
 
   const onCopy = async () => {
@@ -575,9 +714,9 @@ function CopyPromptButton() {
         gap: 5,
         fontSize: 12,
         padding: "5px 10px",
-        color: copied ? "#1a7f37" : "#333",
-        background: copied ? "#e7f6ea" : "#fff",
-        border: `1px solid ${copied ? "#9bd3a7" : "#d5d5d5"}`,
+        color: copied ? "#1a7f37" : t.btnText,
+        background: copied ? "#e7f6ea" : t.btnBg,
+        border: `1px solid ${copied ? "#9bd3a7" : t.btnBorder}`,
         borderRadius: 5,
         cursor: "pointer",
       }}
@@ -588,9 +727,9 @@ function CopyPromptButton() {
   );
 }
 
-function MakeOnePanel() {
+function MakeOnePanel({ t = THEMES.light }) {
   return (
-    <div style={{ color: "#444", fontSize: 13, lineHeight: 1.5 }}>
+    <div style={{ color: t.text, fontSize: 13, lineHeight: 1.5 }}>
       <div
         style={{
           display: "flex",
@@ -599,8 +738,8 @@ function MakeOnePanel() {
           marginBottom: 8,
         }}
       >
-        <strong style={{ fontSize: 13, color: "#333" }}>Make one</strong>
-        <CopyPromptButton />
+        <strong style={{ fontSize: 13, color: t.textStrong }}>Make one</strong>
+        <CopyPromptButton t={t} />
       </div>
       <p style={{ margin: "0 0 8px" }}>
         Paste this into Claude, Copilot, or Cursor, replace{" "}
@@ -611,7 +750,7 @@ function MakeOnePanel() {
           href="https://github.com/jochien/artifact-viewer/blob/main/docs/authoring.md"
           target="_blank"
           rel="noopener noreferrer"
-          style={{ color: "#1a5fb4" }}
+          style={{ color: t.accent }}
         >
           the authoring guide
         </a>{" "}
@@ -623,15 +762,15 @@ function MakeOnePanel() {
           padding: 12,
           maxHeight: 260,
           overflow: "auto",
-          background: "#fff",
-          border: "1px solid #e2e2e2",
+          background: t.codeBg,
+          border: `1px solid ${t.border}`,
           borderRadius: 6,
           fontFamily:
             "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
           fontSize: 12,
           lineHeight: 1.5,
           whiteSpace: "pre-wrap",
-          color: "#333",
+          color: t.text,
         }}
       >
         {AUTHORING_PROMPT}
@@ -640,9 +779,9 @@ function MakeOnePanel() {
   );
 }
 
-function EmptyState() {
+function EmptyState({ t = THEMES.light }) {
   return (
-    <div style={{ padding: 24, color: "#666", fontSize: 14, lineHeight: 1.6 }}>
+    <div style={{ padding: 24, color: t.desc, fontSize: 14, lineHeight: 1.6 }}>
       <p style={{ marginTop: 0 }}>
         Drop a React artifact into <code>src/artifacts/</code> and it shows up in
         the picker above.
@@ -653,7 +792,7 @@ function EmptyState() {
         <code>npm run add -- /path/to/your-file.jsx</code>
       </p>
       <div style={{ maxWidth: 720, marginTop: 18 }}>
-        <MakeOnePanel />
+        <MakeOnePanel t={t} />
       </div>
     </div>
   );

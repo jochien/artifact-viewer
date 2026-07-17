@@ -70,3 +70,11 @@ export function cardMeta(meta, name) {
     : [];
   return { title, description, tags };
 }
+
+// Resolve the active chrome theme from a stored preference and the OS setting.
+// A stored "light"/"dark" wins; otherwise fall back to the system preference.
+// Pure logic so it is unit-testable without a DOM.
+export function resolveTheme(stored, systemPrefersDark) {
+  if (stored === "light" || stored === "dark") return stored;
+  return systemPrefersDark ? "dark" : "light";
+}
