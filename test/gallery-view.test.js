@@ -5,6 +5,8 @@ import {
   thumbScale,
   cardMeta,
   resolveTheme,
+  reconcileGroups,
+  moveCard,
 } from '../src/artifactNames.js';
 
 const names = [
@@ -152,5 +154,72 @@ describe('resolveTheme', () => {
   it('ignores invalid stored values and uses the system preference', () => {
     expect(resolveTheme('purple', true)).toBe('dark');
     expect(resolveTheme('', false)).toBe('light');
+  });
+});
+
+describe('reconcileGroups', () => {
+  const names = [{ name: 'a' }, { name: 'b' }, { name: 'c' }];
+
+  it('defaults to a single Ungrouped group with all names when nothing saved', () => {
+    expect(reconcileGroups(names, null)).toEqual([
+      { id: 'ungrouped', name: 'Ungrouped', items: ['a', 'b', 'c'] },
+    ]);
+  });
+
+  it('keeps saved groups and order, and appends new names to Ungrouped', () => {
+    const saved = [
+      { id: 'g0', name: 'Faves', items: ['b'] },
+      { id: 'g1', name: 'Ungrouped', items: ['a'] },
+    ];
+    const out = reconcileGroups(names, saved);
+    expect(out[0]).toEqual({ id: 'g0', name: 'Faves', items: ['b'] });
+    // 'c' is new -> appended to the Ungrouped group
+    expect(out[1]).toEqual({ id: 'g1', name: 'Ungrouped', items: ['a', 'c'] });
+  });
+
+  it('drops artifacts that no longer exist and dedupes across groups', () => {
+    const saved = [
+      { id: 'g0', name: 'One', items: ['a', 'gone', 'b'] },
+      { id: 'g1', name: 'Two', items: ['b', 'c'] },
+    ];
+    const out = reconcileGroups(names, saved);
+    expect(out[0].items).toEqual(['a', 'b']); // 'gone' removed
+    expect(out[1].items).toEqual(['c']); // 'b' deduped (kept in first group)
+  });
+
+  it('appends new names to the last group when there is no Ungrouped', () => {
+    const saved = [{ id: 'g0', name: 'Only', items: ['a'] }];
+    const out = reconcileGroups(names, saved);
+    expect(out[0].items).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('moveCard', () => {
+  const groups = [
+    { id: 'g0', name: 'One', items: ['a', 'b'] },
+    { id: 'g1', name: 'Two', items: ['c'] },
+  ];
+
+  it('moves a card to another group at an index', () => {
+    const out = moveCard(groups, 'a', 'g1', 0);
+    expect(out[0].items).toEqual(['b']);
+    expect(out[1].items).toEqual(['a', 'c']);
+  });
+
+  it('appends when the index is past the end', () => {
+    const out = moveCard(groups, 'a', 'g1', 99);
+    expect(out[1].items).toEqual(['c', 'a']);
+  });
+
+  it('keeps the card exactly once (never duplicates)', () => {
+    const out = moveCard(groups, 'b', 'g1', 1);
+    const all = out.flatMap((g) => g.items);
+    expect(all.filter((x) => x === 'b')).toHaveLength(1);
+  });
+
+  it('is immutable — does not mutate the input', () => {
+    const snapshot = JSON.parse(JSON.stringify(groups));
+    moveCard(groups, 'a', 'g1', 0);
+    expect(groups).toEqual(snapshot);
   });
 });

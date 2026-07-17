@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   Moon,
   Sun,
+  FolderPlus,
 } from "lucide-react";
 import { AUTHORING_PROMPT } from "./authoringPrompt.js";
 import {
@@ -18,6 +19,8 @@ import {
   thumbScale,
   cardMeta,
   resolveTheme,
+  reconcileGroups,
+  moveCard,
 } from "./artifactNames.js";
 
 /*
@@ -104,6 +107,24 @@ function initialTheme() {
       ? window.matchMedia("(prefers-color-scheme: dark)").matches
       : false;
   return resolveTheme(stored, systemDark);
+}
+
+// Persisted gallery groups (order + membership + names).
+const GROUPS_KEY = "artifact-viewer-groups";
+function loadGroups() {
+  try {
+    const raw = localStorage.getItem(GROUPS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+function saveGroups(groups) {
+  try {
+    localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
+  } catch {
+    /* storage unavailable */
+  }
 }
 
 // Resolve the initial artifact path from the URL. A missing or unknown
@@ -661,31 +682,274 @@ function GalleryCard({ path, name, onOpen, t = THEMES.light }) {
 }
 
 function Gallery({ names, onOpen, t = THEMES.light }) {
+  const byName = useMemo(() => {
+    const m = {};
+    names.forEach((n) => {
+      m[n.name] = n;
+    });
+    return m;
+  }, [names]);
+
+  const [groups, setGroups] = useState(() =>
+    reconcileGroups(names, loadGroups()),
+  );
+  const [dragName, setDragName] = useState(null);
+  const [dropHint, setDropHint] = useState(null); // { groupId, index } (card) or { groupId } (section)
+  const [editingId, setEditingId] = useState(null);
+  const [editingValue, setEditingValue] = useState("");
+
+  useEffect(() => {
+    saveGroups(groups);
+  }, [groups]);
+
+  const moveTo = (name, toGroupId, toIndex) => {
+    if (!name) return;
+    setGroups((g) => moveCard(g, name, toGroupId, toIndex));
+    setDragName(null);
+    setDropHint(null);
+  };
+
+  const addGroup = () => {
+    const id = "g" + Math.random().toString(36).slice(2, 8);
+    setGroups((g) => [...g, { id, name: "New group", items: [] }]);
+    setEditingId(id);
+    setEditingValue("New group");
+  };
+  const commitRename = () => {
+    const name = editingValue.trim() || "Group";
+    setGroups((g) => g.map((x) => (x.id === editingId ? { ...x, name } : x)));
+    setEditingId(null);
+    setEditingValue("");
+  };
+  const deleteGroup = (id) => {
+    setGroups((g) => {
+      if (g.length <= 1) return g;
+      const victim = g.find((x) => x.id === id);
+      const rest = g.filter((x) => x.id !== id);
+      rest[0] = {
+        ...rest[0],
+        items: [...rest[0].items, ...((victim && victim.items) || [])],
+      };
+      return rest;
+    });
+  };
+
+  const btnStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
+    fontSize: 12,
+    fontWeight: 600,
+    padding: "5px 10px",
+    color: t.btnText,
+    background: t.btnBg,
+    border: `1px solid ${t.btnBorder}`,
+    borderRadius: 6,
+    cursor: "pointer",
+  };
+
   return (
     <div style={{ padding: "20px clamp(14px, 3vw, 28px) 40px" }}>
       <div
         style={{
           display: "flex",
-          alignItems: "baseline",
+          alignItems: "center",
           gap: 10,
-          marginBottom: 16,
+          marginBottom: 8,
+          flexWrap: "wrap",
         }}
       >
         <h1 style={{ margin: 0, fontSize: 18, color: t.textStrong }}>Artifacts</h1>
         <span style={{ fontSize: 13, color: t.muted }}>
           {names.length} {names.length === 1 ? "artifact" : "artifacts"}
         </span>
+        <button type="button" onClick={addGroup} style={{ ...btnStyle, marginLeft: "auto" }}>
+          <FolderPlus size={14} strokeWidth={2.2} /> New group
+        </button>
       </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
-          gap: 14,
-        }}
-      >
-        {names.map(({ path, name }) => (
-          <GalleryCard key={path} path={path} name={name} onOpen={onOpen} t={t} />
-        ))}
+      <div style={{ fontSize: 11.5, color: t.muted, marginBottom: 16 }}>
+        Drag a card to reorder it or move it between groups. Click a group name to rename it.
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        {groups.map((grp) => {
+          const overSection = dropHint && dropHint.groupId === grp.id;
+          return (
+            <section
+              key={grp.id}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDropHint({ groupId: grp.id });
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const nm = e.dataTransfer.getData("text/plain") || dragName;
+                moveTo(nm, grp.id, grp.items.length);
+              }}
+              style={{
+                border: `1px solid ${overSection ? t.accent : t.border}`,
+                borderRadius: 12,
+                padding: "12px 14px 14px",
+                background: t.headerBg,
+                transition: "border-color 120ms",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 12,
+                }}
+              >
+                {editingId === grp.id ? (
+                  <input
+                    autoFocus
+                    value={editingValue}
+                    onChange={(e) => setEditingValue(e.target.value)}
+                    onBlur={commitRename}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitRename();
+                      if (e.key === "Escape") {
+                        setEditingId(null);
+                        setEditingValue("");
+                      }
+                    }}
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 700,
+                      padding: "2px 6px",
+                      color: t.textStrong,
+                      background: t.cardBg,
+                      border: `1px solid ${t.accent}`,
+                      borderRadius: 5,
+                      outline: "none",
+                    }}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingId(grp.id);
+                      setEditingValue(grp.name);
+                    }}
+                    title="Rename group"
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: t.textStrong,
+                      background: "transparent",
+                      border: "none",
+                      padding: 0,
+                      cursor: "text",
+                    }}
+                  >
+                    {grp.name}
+                  </button>
+                )}
+                <span style={{ fontSize: 12, color: t.muted }}>
+                  {grp.items.length}
+                </span>
+                {groups.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => deleteGroup(grp.id)}
+                    title="Delete group (its cards move to the first group)"
+                    style={{
+                      marginLeft: "auto",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      padding: 4,
+                      color: t.muted,
+                      background: "transparent",
+                      border: "none",
+                      borderRadius: 5,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
+
+              {grp.items.length === 0 ? (
+                <div
+                  style={{
+                    padding: "18px 12px",
+                    textAlign: "center",
+                    fontSize: 12,
+                    color: t.faint,
+                    border: `1px dashed ${t.border}`,
+                    borderRadius: 10,
+                  }}
+                >
+                  Drag cards here
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
+                    gap: 14,
+                  }}
+                >
+                  {grp.items.map((nm, idx) => {
+                    const entry = byName[nm];
+                    if (!entry) return null;
+                    const isDragging = dragName === nm;
+                    const isCardTarget =
+                      dropHint &&
+                      dropHint.groupId === grp.id &&
+                      dropHint.index === idx;
+                    return (
+                      <div
+                        key={nm}
+                        draggable
+                        onDragStart={(e) => {
+                          setDragName(nm);
+                          e.dataTransfer.effectAllowed = "move";
+                          e.dataTransfer.setData("text/plain", nm);
+                        }}
+                        onDragEnd={() => {
+                          setDragName(null);
+                          setDropHint(null);
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDropHint({ groupId: grp.id, index: idx });
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const dropped =
+                            e.dataTransfer.getData("text/plain") || dragName;
+                          moveTo(dropped, grp.id, idx);
+                        }}
+                        style={{
+                          opacity: isDragging ? 0.4 : 1,
+                          borderRadius: 12,
+                          outline: isCardTarget
+                            ? `2px solid ${t.accent}`
+                            : "2px solid transparent",
+                          outlineOffset: 2,
+                          transition: "opacity 120ms, outline-color 120ms",
+                        }}
+                      >
+                        <GalleryCard
+                          path={entry.path}
+                          name={nm}
+                          onOpen={onOpen}
+                          t={t}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          );
+        })}
       </div>
     </div>
   );

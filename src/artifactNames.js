@@ -78,3 +78,63 @@ export function resolveTheme(stored, systemPrefersDark) {
   if (stored === "light" || stored === "dark") return stored;
   return systemPrefersDark ? "dark" : "light";
 }
+
+// Reconcile persisted gallery groups against the currently discovered artifact
+// names. Keeps known items in their saved group + order (deduped across groups),
+// drops artifacts that no longer exist, and appends any new artifacts to an
+// "Ungrouped" group (created if missing). Always returns at least one group.
+// Pure logic, no DOM. `names` may be strings or { name } objects.
+export function reconcileGroups(names, saved) {
+  const valid = (Array.isArray(names) ? names : [])
+    .map((n) => (typeof n === "string" ? n : n && n.name))
+    .filter((n) => typeof n === "string" && n.length > 0);
+  const validSet = new Set(valid);
+  const seen = new Set();
+
+  let groups = (Array.isArray(saved) ? saved : [])
+    .filter((g) => g && typeof g === "object")
+    .map((g, i) => ({
+      id: String(g.id != null ? g.id : `g${i}`),
+      name:
+        typeof g.name === "string" && g.name.trim() ? g.name.trim() : "Group",
+      items: (Array.isArray(g.items) ? g.items : []).filter((it) => {
+        if (!validSet.has(it) || seen.has(it)) return false;
+        seen.add(it);
+        return true;
+      }),
+    }));
+
+  if (groups.length === 0) {
+    groups = [{ id: "ungrouped", name: "Ungrouped", items: [] }];
+  }
+
+  const missing = valid.filter((v) => !seen.has(v));
+  if (missing.length) {
+    const targetIdx = (() => {
+      const i = groups.findIndex((g) => g.name === "Ungrouped");
+      return i === -1 ? groups.length - 1 : i;
+    })();
+    groups = groups.map((g, i) =>
+      i === targetIdx ? { ...g, items: [...g.items, ...missing] } : g,
+    );
+  }
+
+  return groups;
+}
+
+// Move an artifact `name` into group `toGroupId` at position `toIndex`. Removes
+// it from wherever it currently lives first, so it appears exactly once. Returns
+// a new groups array (immutable). Pure logic, no DOM.
+export function moveCard(groups, name, toGroupId, toIndex) {
+  const cleaned = (Array.isArray(groups) ? groups : []).map((g) => ({
+    ...g,
+    items: g.items.filter((it) => it !== name),
+  }));
+  return cleaned.map((g) => {
+    if (g.id !== toGroupId) return g;
+    const items = g.items.slice();
+    const idx = Math.max(0, Math.min(toIndex, items.length));
+    items.splice(idx, 0, name);
+    return { ...g, items };
+  });
+}
