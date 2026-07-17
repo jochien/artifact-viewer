@@ -1,6 +1,12 @@
 import React, { useState } from "react";
 import { Check, Minus, Zap, Star, Building2 } from "lucide-react";
 
+export const meta = {
+  description:
+    "A three-tier SaaS pricing page with a monthly/annual toggle and a feature comparison table, in a warm ledger-paper aesthetic.",
+  tags: ["marketing", "pricing", "UI"],
+};
+
 /* ---------------------------------------------------------------
    TOKENS — shared "ledger" paper/ink aesthetic.
 --------------------------------------------------------------- */

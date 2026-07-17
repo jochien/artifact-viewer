@@ -39,6 +39,12 @@ import {
    context. Nothing leaves the Mac.
 --------------------------------------------------------------- */
 
+export const meta = {
+  description:
+    "How the Macaroni bridge pipes macOS apps to an AI agent over iMessage: the control loop, the MCP toolbelt, permission tiers, and deployment modes.",
+  tags: ["explainer", "macOS", "MCP"],
+};
+
 const C = {
   bg: "#0F1015",
   bgAlt: "#161821",

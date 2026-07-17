@@ -51,3 +51,22 @@ export function thumbScale(width, stageW) {
   if (!(width > 0) || !(stageW > 0)) return 0;
   return width / stageW;
 }
+
+// Normalize an artifact's optional `meta` export into the fields a gallery card
+// renders. Everything is optional and degrades gracefully: title defaults to the
+// prettified file name, description to "", tags to []. Pure logic, no DOM.
+export function cardMeta(meta, name) {
+  const m = meta && typeof meta === "object" ? meta : {};
+  const title =
+    typeof m.title === "string" && m.title.trim()
+      ? m.title.trim()
+      : prettifyName(name);
+  const description =
+    typeof m.description === "string" ? m.description.trim() : "";
+  const tags = Array.isArray(m.tags)
+    ? m.tags
+        .filter((t) => typeof t === "string" && t.trim())
+        .map((t) => t.trim())
+    : [];
+  return { title, description, tags };
+}

@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { resolveView, prettifyName, thumbScale } from '../src/artifactNames.js';
+import {
+  resolveView,
+  prettifyName,
+  thumbScale,
+  cardMeta,
+} from '../src/artifactNames.js';
 
 const names = [
   { path: './artifacts/macaroni-explainer.jsx', name: 'macaroni-explainer' },
@@ -77,5 +82,56 @@ describe('thumbScale', () => {
   it('is 0 for a non-positive stage width (never divides by a bad stage)', () => {
     expect(thumbScale(240, 0)).toBe(0);
     expect(thumbScale(240, -1200)).toBe(0);
+  });
+});
+
+describe('cardMeta', () => {
+  it('defaults to the prettified name and empty description/tags when meta is absent', () => {
+    expect(cardMeta(null, 'macaroni-explainer')).toEqual({
+      title: 'Macaroni Explainer',
+      description: '',
+      tags: [],
+    });
+    expect(cardMeta(undefined, 'saas-pricing-page')).toEqual({
+      title: 'Saas Pricing Page',
+      description: '',
+      tags: [],
+    });
+  });
+
+  it('uses provided title, description, and tags when present', () => {
+    expect(
+      cardMeta(
+        { title: 'Macaroni', description: 'A local bridge.', tags: ['macOS', 'MCP'] },
+        'macaroni-explainer',
+      ),
+    ).toEqual({
+      title: 'Macaroni',
+      description: 'A local bridge.',
+      tags: ['macOS', 'MCP'],
+    });
+  });
+
+  it('trims strings and falls back to the name for a blank title', () => {
+    expect(cardMeta({ title: '   ', description: '  hi  ' }, 'trivia-quiz')).toEqual({
+      title: 'Trivia Quiz',
+      description: 'hi',
+      tags: [],
+    });
+  });
+
+  it('ignores non-string tags and drops blanks', () => {
+    expect(cardMeta({ tags: ['ui', '', '  x  ', 3, null] }, 'invoice-builder').tags).toEqual([
+      'ui',
+      'x',
+    ]);
+  });
+
+  it('is defensive against a non-object meta', () => {
+    expect(cardMeta('nope', 'pomodoro-timer')).toEqual({
+      title: 'Pomodoro Timer',
+      description: '',
+      tags: [],
+    });
   });
 });

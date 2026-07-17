@@ -22,6 +22,29 @@ An artifact must follow all of these to render here:
    images or fonts. Generate visuals with inline SVG or CSS. Keep any sample data
    inline so the artifact is fully self-contained and interactive on first render.
 
+## Optional: gallery card metadata
+
+The gallery homepage shows each artifact as a card with a live preview. By default a
+card is titled from the file name (`macaroni-explainer` → "Macaroni Explainer"). You
+can enrich the card by adding one optional **named** export alongside the default
+component — it stays in the same single file, so the artifact remains self-contained:
+
+```jsx
+export const meta = {
+  title: "Macaroni",                 // optional; overrides the prettified file name
+  description: "A local bridge …",   // optional; one or two lines shown on the card
+  tags: ["explainer", "macOS"],      // optional; short chips shown on the card
+};
+
+export default function MacaroniExplainer() {
+  // …
+}
+```
+
+Every field is optional and the card degrades gracefully: no `meta` → name-only card,
+no `description` → no description line, no `tags` → no chips. `meta` is loaded lazily
+(only when the card scrolls into view), so it never changes the render rules above.
+
 ## Copy-paste AI prompt
 
 Hand this to Claude, Copilot, or Cursor. Replace `<describe what you want>` with your

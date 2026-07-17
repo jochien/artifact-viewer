@@ -7,6 +7,7 @@ import {
   resolveView,
   prettifyName,
   thumbScale,
+  cardMeta,
 } from "./artifactNames.js";
 
 /*
@@ -318,9 +319,8 @@ class ThumbErrorBoundary extends React.Component {
 
 // A live, non-interactive preview of an artifact: rendered at THUMB_STAGE_W and
 // scaled to the card width, cropped to THUMB_H. Lazily loaded when in view.
-function Thumbnail({ path, fallback }) {
+function Thumbnail({ path, inView, fallback }) {
   const boxRef = useRef(null);
-  const inView = useInView(boxRef);
   const [width, setWidth] = useState(0);
 
   useEffect(() => {
@@ -380,9 +380,148 @@ function Thumbnail({ path, fallback }) {
   );
 }
 
+function GalleryCard({ path, name, onOpen }) {
+  const cardRef = useRef(null);
+  const inView = useInView(cardRef);
+  const [meta, setMeta] = useState(null);
+  const mono = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+
+  // Load the artifact's optional `meta` export lazily, sharing the card's
+  // in-view trigger so we never eagerly import every artifact up front.
+  useEffect(() => {
+    if (!inView || !modules[path]) return;
+    let alive = true;
+    modules[path]()
+      .then((m) => {
+        if (alive) setMeta(m?.meta ?? {});
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [inView, path]);
+
+  const { title, description, tags } = cardMeta(meta, name);
+
+  const tile = (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        display: "grid",
+        placeItems: "center",
+        background: "#eef4fd",
+      }}
+    >
+      <div
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 9,
+          display: "grid",
+          placeItems: "center",
+          background: "#dbe9fb",
+          color: "#1a5fb4",
+          fontWeight: 700,
+          fontSize: 18,
+        }}
+      >
+        {title.charAt(0)}
+      </div>
+    </div>
+  );
+
+  return (
+    <div
+      ref={cardRef}
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(path)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen(path);
+        }
+      }}
+      title={`Open ${title}`}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        background: "#fff",
+        border: "1px solid #e2e2e2",
+        borderRadius: 10,
+        overflow: "hidden",
+        cursor: "pointer",
+        transition: "border-color 120ms, box-shadow 120ms, transform 120ms",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = "#bcd2f0";
+        e.currentTarget.style.boxShadow = "0 2px 10px rgba(26,95,180,0.10)";
+        e.currentTarget.style.transform = "translateY(-1px)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "#e2e2e2";
+        e.currentTarget.style.boxShadow = "none";
+        e.currentTarget.style.transform = "none";
+      }}
+    >
+      <Thumbnail path={path} inView={inView} fallback={tile} />
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+          padding: "10px 12px",
+        }}
+      >
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: "#222" }}>
+          {title}
+        </div>
+        {description && (
+          <div
+            style={{
+              fontSize: 12,
+              lineHeight: 1.4,
+              color: "#666",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {description}
+          </div>
+        )}
+        <div style={{ fontFamily: mono, fontSize: 10.5, color: "#999" }}>
+          {name}.jsx
+        </div>
+        {tags.length > 0 && (
+          <div
+            style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 2 }}
+          >
+            {tags.map((t) => (
+              <span
+                key={t}
+                style={{
+                  fontSize: 10,
+                  color: "#3a6ea5",
+                  background: "#eef4fd",
+                  border: "1px solid #d6e4f7",
+                  borderRadius: 4,
+                  padding: "1px 6px",
+                }}
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Gallery({ names, onOpen }) {
-  const mono =
-    "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
   return (
     <div style={{ padding: "20px clamp(14px, 3vw, 28px) 40px" }}>
       <div
@@ -405,90 +544,9 @@ function Gallery({ names, onOpen }) {
           gap: 14,
         }}
       >
-        {names.map(({ path, name }) => {
-          const title = prettifyName(name);
-          const tile = (
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                display: "grid",
-                placeItems: "center",
-                background: "#eef4fd",
-              }}
-            >
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 9,
-                  display: "grid",
-                  placeItems: "center",
-                  background: "#dbe9fb",
-                  color: "#1a5fb4",
-                  fontWeight: 700,
-                  fontSize: 18,
-                }}
-              >
-                {title.charAt(0)}
-              </div>
-            </div>
-          );
-          return (
-            <div
-              key={path}
-              role="button"
-              tabIndex={0}
-              onClick={() => onOpen(path)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onOpen(path);
-                }
-              }}
-              title={`Open ${title}`}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                background: "#fff",
-                border: "1px solid #e2e2e2",
-                borderRadius: 10,
-                overflow: "hidden",
-                cursor: "pointer",
-                transition:
-                  "border-color 120ms, box-shadow 120ms, transform 120ms",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "#bcd2f0";
-                e.currentTarget.style.boxShadow =
-                  "0 2px 10px rgba(26,95,180,0.10)";
-                e.currentTarget.style.transform = "translateY(-1px)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "#e2e2e2";
-                e.currentTarget.style.boxShadow = "none";
-                e.currentTarget.style.transform = "none";
-              }}
-            >
-              <Thumbnail path={path} fallback={tile} />
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 3,
-                  padding: "10px 12px",
-                }}
-              >
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: "#222" }}>
-                  {title}
-                </div>
-                <div style={{ fontFamily: mono, fontSize: 10.5, color: "#999" }}>
-                  {name}.jsx
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {names.map(({ path, name }) => (
+          <GalleryCard key={path} path={path} name={name} onOpen={onOpen} />
+        ))}
       </div>
     </div>
   );
