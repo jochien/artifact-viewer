@@ -43,4 +43,23 @@ describe('github workflow explainer scenarios', () => {
       }
     }
   });
+
+  it('every step is placed on a valid rail (local or github)', () => {
+    for (const s of SCENARIOS) {
+      for (const st of s.steps) {
+        expect(['local', 'github']).toContain(st.where);
+      }
+    }
+  });
+
+  it('every scenario except the happy path has a setback step', () => {
+    for (const s of SCENARIOS) {
+      const hasSetback = s.steps.some((st) => st.back === true);
+      if (s.id === 'happy') {
+        expect(hasSetback).toBe(false);
+      } else {
+        expect(hasSetback).toBe(true);
+      }
+    }
+  });
 });
