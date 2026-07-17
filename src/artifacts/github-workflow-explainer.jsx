@@ -1,20 +1,14 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
-  CircleDot,
   GitBranch,
-  GitCommit,
-  GitPullRequest,
   GitMerge,
-  Upload,
   RefreshCw,
   CheckCircle2,
-  Eye,
-  Play,
-  Pause,
+  XCircle,
+  Undo2,
   AlertTriangle,
   ShieldCheck,
   Terminal,
-  Trash2,
   ArrowRight,
   Layers,
   Info,
@@ -23,17 +17,18 @@ import {
 } from "lucide-react";
 
 /* ---------------------------------------------------------------
-   GITHUB FLOW — the loop I actually run
-   The end-to-end lifecycle (issue -> branch -> PR -> CI ->
-   squash-merge -> sync), the merge states, the three merge
-   strategies, dependent vs. independent PRs, and a gh cheat
-   sheet. Grounded in real PRs from the artifact-viewer repo.
+   GITHUB FLOW — six common situations, each as a flow
+   Pick a scenario (happy path, behind, merge conflict, stacked
+   PRs, failing CI, revert a bad merge) and walk its steps with
+   the exact git/gh commands. Plus merge states, merge strategies,
+   a cheat sheet, and a glossary. Grounded in real artifact-viewer
+   PRs.
 --------------------------------------------------------------- */
 
 export const meta = {
   title: "GitHub Flow",
   description:
-    "The GitHub lifecycle I actually run: issue -> branch -> commit -> PR -> CI -> squash-merge -> sync, plus merge states, merge strategies, and dependent vs. independent PRs.",
+    "Six common GitHub situations as step-by-step flows — happy path, behind, merge conflict, stacked PRs, failing CI, reverting a bad merge — with the exact git/gh commands, plus merge states and strategies.",
   tags: ["explainer", "github", "workflow"],
 };
 
@@ -66,116 +61,244 @@ const FONT =
 const MONO = "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
 
 /* ---------------------------------------------------------------
-   THE LIFECYCLE — one atomic unit of work, start to finish.
+   THE SCENARIOS — six common situations, each a step-by-step flow.
+   Exported so the data shape can be unit-tested without rendering.
 --------------------------------------------------------------- */
-const STAGES = [
+export const SCENARIOS = [
   {
-    id: "issue",
-    label: "Issue",
-    icon: CircleDot,
-    color: C.green,
-    dim: C.greenDim,
-    what: "Define one atomic unit of work.",
-    detail:
-      "Every task is its own issue with a Requirement, Acceptance criteria, and a Test case — small enough that one PR closes it. The backlog is the plan.",
-    cmd: "gh issue create --title \"…\"",
-    real: "#57 — this very artifact was an issue first.",
-  },
-  {
-    id: "branch",
-    label: "Branch",
-    icon: GitBranch,
-    color: C.purple,
-    dim: C.purpleDim,
-    what: "Copy main into a private workspace.",
-    detail:
-      "main is protected — you never edit it directly. You branch off a fresh, synced main so your diff starts from the latest code. Prefix by intent: feat/ fix/ docs/ chore/.",
-    cmd: "git checkout main && git pull --rebase\ngit checkout -b feat/github-workflow-explainer",
-    real: "This branch: feat/github-workflow-explainer.",
-  },
-  {
-    id: "commit",
-    label: "Commit",
-    icon: GitCommit,
-    color: C.blue,
-    dim: C.blueDim,
-    what: "Savepoint your changes with a message.",
-    detail:
-      "A commit is a labeled snapshot. Put “Closes #<n>” in the message so merging the PR auto-closes the issue. Keep the diff scoped to the one issue.",
-    cmd: "git commit -m \"Add … \" -m \"Closes #57\"",
-    real: "One focused commit for #57.",
-  },
-  {
-    id: "push",
-    label: "Push",
-    icon: Upload,
-    color: C.blue,
-    dim: C.blueDim,
-    what: "Publish the branch to GitHub (origin).",
-    detail:
-      "Your commits live locally until you push. Pushing uploads the branch to origin so a pull request — and CI — can see it. -u links local to remote.",
-    cmd: "git push -u origin feat/github-workflow-explainer",
-    real: "origin now has the branch.",
-  },
-  {
-    id: "pr",
-    label: "Pull request",
-    icon: GitPullRequest,
-    color: C.green,
-    dim: C.greenDim,
-    what: "Propose merging your branch into main.",
-    detail:
-      "A PR is the request + the review surface + the CI trigger, all in one. The body restates what and why and says “Closes #<n>”. Opening it kicks off the checks.",
-    cmd: "gh pr create --title \"…\" --body \"Closes #57\"",
-    real: "e.g. PR #59 for the metadata work.",
-  },
-  {
-    id: "ci",
-    label: "CI checks",
+    id: "happy",
+    label: "Happy path",
     icon: CheckCircle2,
     color: C.green,
     dim: C.greenDim,
-    what: "Automated build + tests must pass.",
-    detail:
-      "GitHub Actions runs the pipeline (.github/workflows/ci.yml) on every push: install, build, test — here on Node 20 and Node 22. Both must be green to merge.",
-    cmd: "gh pr checks 57",
-    real: "build (Node 20) ✓  build (Node 22) ✓",
+    tagline: "Everything clean, done right — the flow you aim for every time.",
+    steps: [
+      {
+        title: "Open an issue",
+        body: "Write down the one thing you're about to do, small enough to finish in a single change. This is your unit of work.",
+        cmd: 'gh issue create --title "Add dark mode toggle"',
+      },
+      {
+        title: "Branch off a fresh main",
+        body: "Make your own copy of the project to work in, so you never edit the shared main directly. Always start from an up-to-date main.",
+        cmd: "git checkout main && git pull\ngit checkout -b feat/dark-mode",
+      },
+      {
+        title: "Do the work, then commit",
+        body: 'Make your change and save a labeled snapshot. Writing "Closes #62" tells GitHub to close that issue automatically when this lands.',
+        cmd: 'git commit -m "Add dark mode toggle" -m "Closes #62"',
+      },
+      {
+        title: "Push the branch",
+        body: "Upload your branch to GitHub so a pull request — and the automated checks — can see it.",
+        cmd: "git push -u origin feat/dark-mode",
+      },
+      {
+        title: "Open a pull request",
+        body: "Ask to merge your branch into main. This one action opens the review page and kicks off the automated build + tests.",
+        cmd: 'gh pr create --title "Dark mode toggle" --body "Closes #62"',
+      },
+      {
+        title: "Checks go green",
+        body: "GitHub builds and tests your change on its own. Green means nothing is broken.",
+        state: "CLEAN",
+        stateColor: C.green,
+      },
+      {
+        title: "Review, then squash-merge",
+        body: "A human approves, then you merge — collapsing your commits into one clean line on main and deleting the branch.",
+        cmd: "gh pr merge 62 --squash --delete-branch",
+      },
+      {
+        title: "Sync main",
+        body: "Update your local main so your next piece of work starts from the very latest. The loop begins again.",
+        cmd: "git checkout main && git pull",
+      },
+    ],
   },
   {
-    id: "review",
-    label: "Review",
-    icon: Eye,
+    id: "behind",
+    label: "Behind",
+    icon: RefreshCw,
     color: C.amber,
     dim: C.amberDim,
-    what: "A human reads the diff.",
-    detail:
-      "Because main is a protected branch, review is a required gate — not optional. Green CI proves it runs; review judges whether it should ship.",
-    cmd: "gh pr view 57",
-    real: "Approve, or request changes.",
+    tagline: "Someone else's change landed on main while your PR waited.",
+    steps: [
+      {
+        title: "Your PR is BEHIND",
+        body: "Another PR merged into main after you branched. Because main is protected, GitHub won't let you merge until your branch includes those newer changes.",
+        state: "BEHIND",
+        stateColor: C.amber,
+      },
+      {
+        title: "Pull main into your branch",
+        body: "Bring main's new commits into your branch. One click on GitHub, or one command, does it — there's no conflict here, just catching up.",
+        cmd: "gh pr update-branch 62\n# or locally:\ngit checkout feat/dark-mode && git merge origin/main",
+      },
+      {
+        title: "Checks re-run",
+        body: "Your branch just changed, so the build + tests run again automatically. Wait for green.",
+        state: "UNKNOWN → CLEAN",
+        stateColor: C.gray,
+      },
+      {
+        title: "Merge",
+        body: "Now it's up to date and green. Merge as usual.",
+        cmd: "gh pr merge 62 --squash --delete-branch",
+      },
+      {
+        title: "Seen it live",
+        body: "This is exactly what happened to PRs #52 and #60 in this repo — each went BEHIND the moment another PR merged first.",
+      },
+    ],
   },
   {
-    id: "merge",
-    label: "Squash-merge",
+    id: "conflict",
+    label: "Merge conflict",
     icon: GitMerge,
+    color: C.red,
+    dim: C.redDim,
+    tagline: "You and someone else changed the same lines.",
+    steps: [
+      {
+        title: "Your PR is DIRTY",
+        body: "Git can't automatically combine two edits to the same lines, so it flags a conflict. Nothing is broken — it just needs you to choose.",
+        state: "DIRTY",
+        stateColor: C.red,
+      },
+      {
+        title: "Bring main into your branch",
+        body: "Pull the latest main so the conflict appears on your machine, where you can fix it.",
+        cmd: "git checkout feat/dark-mode && git pull origin main",
+      },
+      {
+        title: "Resolve by hand",
+        body: "Git marks the clashing spots with <<<<<<<, =======, >>>>>>>. Edit the file to the version you want — keeping the best of both sides — and delete those markers.",
+      },
+      {
+        title: "Mark resolved and commit",
+        body: "Tell git the conflict is settled, then commit the merge.",
+        cmd: "git add . && git commit",
+      },
+      {
+        title: "Push, then merge",
+        body: "Push the fix; the PR turns green; merge it.",
+        cmd: "git push",
+      },
+      {
+        title: "Best defense",
+        body: "Small, frequent PRs that merge quickly are the surest way to avoid big, painful conflicts.",
+      },
+    ],
+  },
+  {
+    id: "stacked",
+    label: "Stacked PRs",
+    icon: Layers,
     color: C.purple,
     dim: C.purpleDim,
-    what: "Collapse the branch into one clean commit, delete it.",
-    detail:
-      "Squash turns the branch's commits into a single tidy commit on main; deleting the branch keeps the repo clean. This is the repo's chosen strategy.",
-    cmd: "gh pr merge 57 --squash --delete-branch",
-    real: "One commit lands on main; branch gone.",
+    tagline: "One feature builds on another that hasn't merged yet.",
+    steps: [
+      {
+        title: "The trap",
+        body: "Feature B needs feature A's code, but A isn't merged. If you branch B off A, you inherit A's unfinished work and a tangle to unwind later.",
+        state: "avoid stacking",
+        stateColor: C.amber,
+      },
+      {
+        title: "Merge A first",
+        body: "Land the one underneath, then update your local main so it has A's code.",
+        cmd: "gh pr merge A --squash --delete-branch\ngit checkout main && git pull",
+      },
+      {
+        title: "Branch B off fresh main",
+        body: "Now start B from the just-merged main. It cleanly includes A, with no borrowed branch.",
+        cmd: "git checkout -b feat/b",
+      },
+      {
+        title: "Repeat, one at a time",
+        body: 'Merge B, branch C off fresh main, and so on. This is "single-tracking" a dependent chain.',
+      },
+      {
+        title: "Independent work is easier",
+        body: "If two PRs touch different files, they don't depend on each other — open them in parallel and merge in any order. This chain was the gallery: #56 → #54 → #55.",
+      },
+    ],
   },
   {
-    id: "sync",
-    label: "Sync main",
-    icon: RefreshCw,
+    id: "ci-fail",
+    label: "CI fails",
+    icon: XCircle,
+    color: C.red,
+    dim: C.redDim,
+    tagline: "You pushed, but a check went red.",
+    steps: [
+      {
+        title: "A check is red",
+        body: "A test failed or the build broke, so GitHub blocks the merge until it's fixed. The PR stays open — you don't start over.",
+        state: "checks failing",
+        stateColor: C.red,
+      },
+      {
+        title: "Read the failing job",
+        body: "Open the red check to see exactly what broke — the log points straight at the failing test or build error.",
+        cmd: "gh pr checks 62   # or click the red X on the PR",
+      },
+      {
+        title: "Fix it locally",
+        body: "Reproduce and fix on your machine. Run the same checks CI runs until they pass.",
+        cmd: "npm run build && npm test",
+      },
+      {
+        title: "Push to the SAME branch",
+        body: "You don't open a new PR. Pushing more commits to the same branch updates the existing PR and re-runs the checks automatically.",
+        cmd: 'git commit -am "Fix failing test" && git push',
+      },
+      {
+        title: "Green, then merge",
+        body: "Once the checks pass, merge as usual.",
+        state: "CLEAN",
+        stateColor: C.green,
+      },
+      {
+        title: "Catch it earlier",
+        body: "Run build + test locally before you push, and CI rarely surprises you.",
+      },
+    ],
+  },
+  {
+    id: "revert",
+    label: "Revert a bad merge",
+    icon: Undo2,
     color: C.blue,
     dim: C.blueDim,
-    what: "Pull main so local matches, then branch the next work.",
-    detail:
-      "After a merge, your local main is behind by one commit. Pull it so the next branch starts from the freshly merged code. The loop begins again.",
-    cmd: "git checkout main && git pull --rebase",
-    real: "Ready for the next issue.",
+    tagline: "Something broken already landed on main.",
+    steps: [
+      {
+        title: "It's already on main",
+        body: "A merged PR turned out to be broken. You don't rewrite history on a protected branch — instead you add a new commit that undoes the bad one.",
+      },
+      {
+        title: "Open a revert PR",
+        body: 'GitHub can generate a revert from the merged PR with its "Revert" button, or you can do it locally. Either way it becomes a normal PR.',
+        cmd: "git revert -m 1 <merge-commit-sha>\n# then push and open a PR",
+      },
+      {
+        title: "Let CI gate it",
+        body: "The revert runs the same checks and gets reviewed, just like any other change.",
+        state: "CLEAN",
+        stateColor: C.green,
+      },
+      {
+        title: "Merge, then fix forward",
+        body: "Merging puts main back to the good state. Fix the real problem properly in a fresh PR afterward.",
+        cmd: "gh pr merge <n> --squash --delete-branch",
+      },
+      {
+        title: "Why revert, not delete",
+        body: 'A revert is safe and traceable: it adds history that says "we undid this" rather than pretending it never happened.',
+      },
+    ],
   },
 ];
 
@@ -312,90 +435,11 @@ function SectionTitle({ icon: Icon, color, title, sub }) {
   );
 }
 
-function Node({ stage, active, done, onHover }) {
-  const Icon = stage.icon;
-  return (
-    <div
-      onMouseEnter={() => onHover(stage.id)}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 7,
-        flex: "1 1 0",
-        minWidth: 74,
-        cursor: "default",
-      }}
-    >
-      <div
-        style={{
-          width: 46,
-          height: 46,
-          borderRadius: 12,
-          display: "grid",
-          placeItems: "center",
-          background: active ? stage.color : stage.dim,
-          border: `1.5px solid ${active ? stage.color : stage.color + "55"}`,
-          boxShadow: active ? `0 0 0 4px ${stage.color}22` : "none",
-          transform: active ? "translateY(-3px)" : "none",
-          transition: "all 240ms cubic-bezier(.2,.7,.3,1)",
-        }}
-      >
-        <Icon size={21} color={active ? C.bgAlt : stage.color} strokeWidth={2.1} />
-      </div>
-      <div
-        style={{
-          fontSize: 11.5,
-          fontWeight: 700,
-          color: active ? stage.color : C.inkSoft,
-          textAlign: "center",
-          letterSpacing: 0.2,
-        }}
-      >
-        {stage.label}
-      </div>
-      {done && !active && (
-        <div style={{ marginTop: -2, fontSize: 10, color: C.green }}>✓</div>
-      )}
-    </div>
-  );
-}
-
-function Arrow({ lit }) {
-  return (
-    <div
-      style={{
-        flex: "0 0 18px",
-        display: "grid",
-        placeItems: "center",
-        marginTop: 22,
-      }}
-    >
-      <ArrowRight size={15} color={lit ? C.blue : C.line} />
-    </div>
-  );
-}
-
 export default function GitHubWorkflowExplainer() {
-  const [step, setStep] = useState(0);
-  const [playing, setPlaying] = useState(true);
-  const [hovered, setHovered] = useState("issue");
-
-  useEffect(() => {
-    if (!playing) return;
-    const t = setInterval(() => {
-      setStep((s) => (s + 1) % STAGES.length);
-    }, 1500);
-    return () => clearInterval(t);
-  }, [playing]);
-
-  useEffect(() => {
-    if (playing) setHovered(STAGES[step].id);
-  }, [step, playing]);
-
-  const active = useMemo(
-    () => STAGES.find((s) => s.id === hovered) || STAGES[0],
-    [hovered],
+  const [scenarioId, setScenarioId] = useState(SCENARIOS[0].id);
+  const scenario = useMemo(
+    () => SCENARIOS.find((s) => s.id === scenarioId) || SCENARIOS[0],
+    [scenarioId],
   );
 
   return (
@@ -447,8 +491,8 @@ export default function GitHubWorkflowExplainer() {
                 lineHeight: 1.5,
               }}
             >
-              The loop I actually run: one atomic issue from branch to merge —
-              and the terms that show up along the way.
+              The loop I actually run — now as six situations you'll actually
+              hit, each a step-by-step flow with the exact git and gh commands.
             </p>
           </div>
         </div>
@@ -463,7 +507,7 @@ export default function GitHubWorkflowExplainer() {
         </div>
       </div>
 
-      {/* ===== THE LIFECYCLE ===== */}
+      {/* ===== SCENARIO PICKER + STEPS ===== */}
       <section
         style={{
           background: C.panel,
@@ -473,108 +517,170 @@ export default function GitHubWorkflowExplainer() {
           marginBottom: 22,
         }}
       >
+        <SectionTitle
+          icon={Layers}
+          color={C.blue}
+          title="Pick a scenario"
+          sub="the flow for each common situation"
+        />
+
+        {/* pills */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+          {SCENARIOS.map((s) => {
+            const on = s.id === scenarioId;
+            const Icon = s.icon;
+            return (
+              <button
+                key={s.id}
+                onClick={() => setScenarioId(s.id)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  background: on ? s.color : C.bgAlt,
+                  color: on ? C.bgAlt : C.inkSoft,
+                  border: `1px solid ${on ? s.color : C.line}`,
+                  borderRadius: 9,
+                  padding: "8px 13px",
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: FONT,
+                  transition: "all 160ms",
+                }}
+              >
+                <Icon size={14} />
+                {s.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* tagline */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 20,
-            flexWrap: "wrap",
-            gap: 12,
-          }}
-        >
-          <SectionTitle
-            icon={Layers}
-            color={C.blue}
-            title="The lifecycle"
-            sub="one unit of work, start to finish"
-          />
-          <button
-            onClick={() => setPlaying((p) => !p)}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 7,
-              background: playing ? C.panelAlt : C.blue,
-              color: playing ? C.ink : C.bgAlt,
-              border: `1px solid ${playing ? C.line : C.blue}`,
-              borderRadius: 9,
-              padding: "7px 14px",
-              fontSize: 12.5,
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: FONT,
-            }}
-          >
-            {playing ? <Pause size={14} /> : <Play size={14} />}
-            {playing ? "Pause" : "Play"} the loop
-          </button>
-        </div>
-
-        {/* pipeline */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            rowGap: 14,
-          }}
-        >
-          {STAGES.map((s, i) => (
-            <React.Fragment key={s.id}>
-              <Node
-                stage={s}
-                active={step === i}
-                done={step > i}
-                onHover={setHovered}
-              />
-              {i < STAGES.length - 1 && <Arrow lit={step === i || step === i + 1} />}
-            </React.Fragment>
-          ))}
-        </div>
-
-        {/* detail panel */}
-        <div
-          style={{
-            marginTop: 22,
+            gap: 10,
+            marginBottom: 18,
+            padding: "12px 14px",
             background: C.bgAlt,
-            border: `1px solid ${active.color}44`,
-            borderLeft: `3px solid ${active.color}`,
-            borderRadius: 12,
-            padding: "16px 18px",
+            border: `1px solid ${scenario.color}44`,
+            borderLeft: `3px solid ${scenario.color}`,
+            borderRadius: 10,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-            <active.icon size={17} color={active.color} />
-            <span style={{ fontWeight: 700, fontSize: 14 }}>{active.label}</span>
-            <span style={{ color: active.color, fontSize: 12.5 }}>{active.what}</span>
-          </div>
-          <p style={{ margin: "0 0 12px", fontSize: 12.8, lineHeight: 1.55, color: C.inkSoft }}>
-            {active.detail}
-          </p>
-          <pre
-            style={{
-              margin: "0 0 10px",
-              padding: "10px 12px",
-              background: C.panel,
-              border: `1px solid ${C.line}`,
-              borderRadius: 8,
-              fontFamily: MONO,
-              fontSize: 11.5,
-              color: C.green,
-              overflowX: "auto",
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            {active.cmd}
-          </pre>
-          <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11.5, color: C.muted }}>
-            <Info size={12} /> {active.real}
-          </div>
+          <scenario.icon size={18} color={scenario.color} />
+          <span style={{ fontSize: 13.5, color: C.inkSoft, lineHeight: 1.5 }}>
+            {scenario.tagline}
+          </span>
         </div>
-        <div style={{ marginTop: 10, fontSize: 11.5, color: C.muted, textAlign: "center" }}>
-          Hover any step to inspect it · the loop repeats for every issue
+
+        {/* step timeline */}
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {scenario.steps.map((st, i) => {
+            const last = i === scenario.steps.length - 1;
+            return (
+              <div key={i} style={{ display: "flex", gap: 14 }}>
+                {/* rail */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    flex: "0 0 auto",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: "50%",
+                      display: "grid",
+                      placeItems: "center",
+                      background: scenario.dim,
+                      border: `1.5px solid ${scenario.color}`,
+                      color: scenario.color,
+                      fontFamily: MONO,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      flex: "0 0 auto",
+                    }}
+                  >
+                    {i + 1}
+                  </div>
+                  {!last && (
+                    <div
+                      style={{
+                        width: 2,
+                        flex: 1,
+                        minHeight: 18,
+                        background: C.line,
+                        margin: "4px 0",
+                      }}
+                    />
+                  )}
+                </div>
+                {/* content */}
+                <div style={{ paddingBottom: last ? 0 : 18, flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 9,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>{st.title}</span>
+                    {st.state && (
+                      <span
+                        style={{
+                          fontFamily: MONO,
+                          fontSize: 10.5,
+                          color: st.stateColor || C.muted,
+                          background: C.bg,
+                          border: `1px solid ${(st.stateColor || C.muted) + "55"}`,
+                          borderRadius: 5,
+                          padding: "2px 7px",
+                        }}
+                      >
+                        {st.state}
+                      </span>
+                    )}
+                  </div>
+                  <p
+                    style={{
+                      margin: "5px 0 0",
+                      fontSize: 12.8,
+                      lineHeight: 1.55,
+                      color: C.inkSoft,
+                    }}
+                  >
+                    {st.body}
+                  </p>
+                  {st.cmd && (
+                    <pre
+                      style={{
+                        margin: "9px 0 0",
+                        padding: "9px 12px",
+                        background: C.bgAlt,
+                        border: `1px solid ${C.line}`,
+                        borderRadius: 8,
+                        fontFamily: MONO,
+                        fontSize: 11.3,
+                        color: C.green,
+                        overflowX: "auto",
+                        whiteSpace: "pre-wrap",
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {st.cmd}
+                    </pre>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 
