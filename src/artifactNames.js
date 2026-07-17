@@ -43,3 +43,11 @@ export function resolveView(search, names) {
   if (path) return { mode: "artifact", path };
   return { mode: "gallery", path: null };
 }
+
+// Scale factor that fits a stage of logical width stageW into a box of the given
+// pixel width, for the gallery's live thumbnails. Returns 0 until a real width is
+// known so nothing renders (and never divides by a bad stage width). Pure math.
+export function thumbScale(width, stageW) {
+  if (!(width > 0) || !(stageW > 0)) return 0;
+  return width / stageW;
+}

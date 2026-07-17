@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveView, prettifyName } from '../src/artifactNames.js';
+import { resolveView, prettifyName, thumbScale } from '../src/artifactNames.js';
 
 const names = [
   { path: './artifacts/macaroni-explainer.jsx', name: 'macaroni-explainer' },
@@ -60,5 +60,22 @@ describe('resolveView', () => {
       mode: 'popout',
       path: null,
     });
+  });
+});
+
+describe('thumbScale', () => {
+  it('is the width-to-stage ratio when both are positive', () => {
+    expect(thumbScale(240, 1200)).toBe(0.2);
+    expect(thumbScale(600, 1200)).toBe(0.5);
+  });
+
+  it('is 0 until a real width is known', () => {
+    expect(thumbScale(0, 1200)).toBe(0);
+    expect(thumbScale(undefined, 1200)).toBe(0);
+  });
+
+  it('is 0 for a non-positive stage width (never divides by a bad stage)', () => {
+    expect(thumbScale(240, 0)).toBe(0);
+    expect(thumbScale(240, -1200)).toBe(0);
   });
 });

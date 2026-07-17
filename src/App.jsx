@@ -1,4 +1,4 @@
-import React, { Suspense, useMemo, useState } from "react";
+import React, { Suspense, useMemo, useState, useEffect, useRef } from "react";
 import { Plus, Copy, Check, ExternalLink, Trash2, ChevronLeft } from "lucide-react";
 import { AUTHORING_PROMPT } from "./authoringPrompt.js";
 import {
@@ -6,6 +6,7 @@ import {
   isPopout,
   resolveView,
   prettifyName,
+  thumbScale,
 } from "./artifactNames.js";
 
 /*
@@ -268,6 +269,117 @@ export default function App() {
   );
 }
 
+// Logical width the artifact is rendered at before being scaled down into a card,
+// and the fixed height of the thumbnail crop.
+const THUMB_STAGE_W = 1200;
+const THUMB_H = 148;
+
+// Mount a card's preview only once it scrolls near the viewport, so a large
+// gallery stays responsive. Falls back to "always in view" without IO support.
+function useInView(ref, rootMargin = "300px") {
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    if (inView) return;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setInView(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setInView(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [ref, inView, rootMargin]);
+  return inView;
+}
+
+// Isolate a single artifact's render failure so one broken artifact shows its
+// fallback tile instead of taking down the whole gallery.
+class ThumbErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { failed: false };
+  }
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    if (this.state.failed) return this.props.fallback ?? null;
+    return this.props.children;
+  }
+}
+
+// A live, non-interactive preview of an artifact: rendered at THUMB_STAGE_W and
+// scaled to the card width, cropped to THUMB_H. Lazily loaded when in view.
+function Thumbnail({ path, fallback }) {
+  const boxRef = useRef(null);
+  const inView = useInView(boxRef);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => {
+      setWidth(entries[entries.length - 1].contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const Comp = useMemo(() => {
+    if (!inView || !modules[path]) return null;
+    return React.lazy(async () => {
+      const mod = await modules[path]();
+      return { default: mod.default ?? Object.values(mod)[0] };
+    });
+  }, [inView, path]);
+
+  const scale = thumbScale(width, THUMB_STAGE_W);
+
+  return (
+    <div
+      ref={boxRef}
+      aria-hidden="true"
+      style={{
+        position: "relative",
+        height: THUMB_H,
+        overflow: "hidden",
+        background: "#fbfbfd",
+        borderBottom: "1px solid #eee",
+      }}
+    >
+      {Comp && scale > 0 ? (
+        <ThumbErrorBoundary fallback={fallback}>
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: THUMB_STAGE_W,
+              transform: `scale(${scale})`,
+              transformOrigin: "top left",
+              pointerEvents: "none",
+            }}
+          >
+            <Suspense fallback={null}>
+              <Comp />
+            </Suspense>
+          </div>
+        </ThumbErrorBoundary>
+      ) : (
+        fallback
+      )}
+    </div>
+  );
+}
+
 function Gallery({ names, onOpen }) {
   const mono =
     "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
@@ -295,22 +407,53 @@ function Gallery({ names, onOpen }) {
       >
         {names.map(({ path, name }) => {
           const title = prettifyName(name);
+          const tile = (
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "grid",
+                placeItems: "center",
+                background: "#eef4fd",
+              }}
+            >
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 9,
+                  display: "grid",
+                  placeItems: "center",
+                  background: "#dbe9fb",
+                  color: "#1a5fb4",
+                  fontWeight: 700,
+                  fontSize: 18,
+                }}
+              >
+                {title.charAt(0)}
+              </div>
+            </div>
+          );
           return (
-            <button
+            <div
               key={path}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => onOpen(path)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onOpen(path);
+                }
+              }}
               title={`Open ${title}`}
               style={{
-                textAlign: "left",
                 display: "flex",
                 flexDirection: "column",
-                gap: 8,
-                minHeight: 96,
-                padding: "14px 15px",
                 background: "#fff",
                 border: "1px solid #e2e2e2",
                 borderRadius: 10,
+                overflow: "hidden",
                 cursor: "pointer",
                 transition:
                   "border-color 120ms, box-shadow 120ms, transform 120ms",
@@ -327,35 +470,23 @@ function Gallery({ names, onOpen }) {
                 e.currentTarget.style.transform = "none";
               }}
             >
+              <Thumbnail path={path} fallback={tile} />
               <div
                 style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 8,
-                  display: "grid",
-                  placeItems: "center",
-                  background: "#eef4fd",
-                  color: "#1a5fb4",
-                  fontWeight: 700,
-                  fontSize: 15,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 3,
+                  padding: "10px 12px",
                 }}
               >
-                {title.charAt(0)}
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: "#222" }}>
+                  {title}
+                </div>
+                <div style={{ fontFamily: mono, fontSize: 10.5, color: "#999" }}>
+                  {name}.jsx
+                </div>
               </div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#222" }}>
-                {title}
-              </div>
-              <div
-                style={{
-                  fontFamily: mono,
-                  fontSize: 11,
-                  color: "#999",
-                  marginTop: "auto",
-                }}
-              >
-                {name}.jsx
-              </div>
-            </button>
+            </div>
           );
         })}
       </div>
