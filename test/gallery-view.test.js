@@ -7,6 +7,7 @@ import {
   resolveTheme,
   reconcileGroups,
   moveCard,
+  missingDependency,
 } from '../src/artifactNames.js';
 
 const names = [
@@ -221,5 +222,31 @@ describe('moveCard', () => {
     const snapshot = JSON.parse(JSON.stringify(groups));
     moveCard(groups, 'a', 'g1', 0);
     expect(groups).toEqual(snapshot);
+  });
+});
+
+describe('missingDependency', () => {
+  it('extracts the package from a Vite resolve error', () => {
+    expect(
+      missingDependency(
+        `Failed to resolve import "recharts" from "src/artifacts/x.jsx". Does the file exist?`,
+      ),
+    ).toBe('recharts');
+  });
+
+  it('keeps the @scope and strips any subpath', () => {
+    expect(
+      missingDependency(`Failed to resolve import "@tanstack/react-query/foo"`),
+    ).toBe('@tanstack/react-query');
+    expect(missingDependency(`Cannot find module "lodash/debounce"`)).toBe(
+      'lodash',
+    );
+  });
+
+  it('returns null for relative imports and unrelated errors', () => {
+    expect(missingDependency(`Failed to resolve import "./helper"`)).toBeNull();
+    expect(missingDependency('TypeError: x is not a function')).toBeNull();
+    expect(missingDependency(null)).toBeNull();
+    expect(missingDependency(undefined)).toBeNull();
   });
 });

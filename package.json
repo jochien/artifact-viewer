@@ -13,6 +13,7 @@
     "add": "node scripts/add-artifact.mjs",
     "new": "node scripts/new-artifact.mjs",
     "view": "node scripts/view-artifact.mjs",
+    "scan-deps": "node scripts/scan-deps.mjs",
     "test": "vitest run"
   },
   "dependencies": {

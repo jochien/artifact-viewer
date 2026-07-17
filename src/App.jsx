@@ -22,6 +22,7 @@ import {
   reconcileGroups,
   moveCard,
   buildNames,
+  missingDependency,
 } from "./artifactNames.js";
 
 /*
@@ -1071,6 +1072,51 @@ class ErrorBoundary extends React.Component {
   }
   render() {
     if (this.state.error) {
+      const err = this.state.error;
+      const dep = missingDependency(err?.stack || err?.message || err);
+      if (dep) {
+        const mono =
+          "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+        return (
+          <div style={{ padding: 24, maxWidth: 640, lineHeight: 1.55 }}>
+            <div
+              style={{
+                fontSize: 15,
+                fontWeight: 700,
+                color: "#d29922",
+                marginBottom: 8,
+              }}
+            >
+              Missing dependency: {dep}
+            </div>
+            <p style={{ margin: "0 0 12px", fontSize: 13.5 }}>
+              This artifact imports <code style={{ fontFamily: mono }}>{dep}</code>,
+              which is not installed. Install it and reload:
+            </p>
+            <pre
+              style={{
+                margin: 0,
+                padding: "10px 12px",
+                background: "rgba(127,127,127,0.14)",
+                borderRadius: 8,
+                fontFamily: mono,
+                fontSize: 13,
+                whiteSpace: "pre-wrap",
+              }}
+            >
+              npm install {dep}
+            </pre>
+            <p style={{ marginTop: 14, fontSize: 12, opacity: 0.7 }}>
+              Tip: viewer-ready artifacts should import only{" "}
+              <code style={{ fontFamily: mono }}>react</code>,{" "}
+              <code style={{ fontFamily: mono }}>react-dom</code>, and{" "}
+              <code style={{ fontFamily: mono }}>lucide-react</code>. Run{" "}
+              <code style={{ fontFamily: mono }}>npm run scan-deps</code> to list
+              every missing import across artifacts.
+            </p>
+          </div>
+        );
+      }
       return (
         <pre
           style={{
@@ -1080,7 +1126,7 @@ class ErrorBoundary extends React.Component {
             fontSize: 13,
           }}
         >
-          {String(this.state.error?.stack || this.state.error)}
+          {String(err?.stack || err)}
         </pre>
       );
     }

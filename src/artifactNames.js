@@ -100,6 +100,38 @@ export function resolveTheme(stored, systemPrefersDark) {
   return systemPrefersDark ? "dark" : "light";
 }
 
+// Given an error's text, detect the name of a missing npm package (if the error
+// is an unresolved bare import) so the viewer can show a friendly install hint.
+// Returns the package name (keeping an @scope, stripping any subpath) or null.
+// Pure logic, no DOM.
+export function missingDependency(errorText) {
+  const s = String(errorText == null ? "" : errorText);
+  const patterns = [
+    /Failed to resolve import ["']([^"']+)["']/i,
+    /Rollup failed to resolve import ["']([^"']+)["']/i,
+    /Cannot find (?:module|package) ["']([^"']+)["']/i,
+    /Module not found:[^"']*["']([^"']+)["']/i,
+  ];
+  for (const re of patterns) {
+    const m = s.match(re);
+    if (m && m[1]) {
+      const spec = m[1];
+      if (
+        spec.startsWith(".") ||
+        spec.startsWith("/") ||
+        spec.startsWith("node:")
+      ) {
+        return null;
+      }
+      if (spec.startsWith("@")) {
+        return spec.split("/").slice(0, 2).join("/");
+      }
+      return spec.split("/")[0];
+    }
+  }
+  return null;
+}
+
 // Reconcile persisted gallery groups against the currently discovered artifact
 // names. Keeps known items in their saved group + order (deduped across groups),
 // drops artifacts that no longer exist, and appends any new artifacts to an
